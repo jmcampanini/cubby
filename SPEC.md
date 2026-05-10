@@ -4,8 +4,8 @@
 more **source** dotfiles repos into a single **host** dotfiles repo via relative
 symlinks.
 
-It is intended to be invoked from the host repo. Whatever existing tooling the
-host repo uses (stow, chezmoi, plain symlinks to `$HOME`) continues to work
+It is intended to be invoked from the host repo root. Whatever existing tooling
+the host repo uses (stow, chezmoi, plain symlinks to `$HOME`) continues to work
 unchanged: `cubby` only manipulates files inside the host repo's tree.
 
 > **Terminology note.** "Host" / "source" describe repo *roles*, not symlink
@@ -17,8 +17,10 @@ unchanged: `cubby` only manipulates files inside the host repo's tree.
 
 ## 1. Concepts
 
-- **Host repo.** The user's main dotfiles repo. `cubby` is invoked from here.
-  Owns the registry of source repos and global behavioral defaults.
+- **Host repo.** The user's main dotfiles repo. `cubby` is invoked from the
+  host repo root, using Stow-like ergonomics rather than walking upward to
+  discover a root. Owns the registry of source repos and global behavioral
+  defaults.
 - **Source repo.** A separate git repo containing profile-scoped files.
   Self-describing: declares which profiles it provides and which files to
   ignore.
@@ -81,7 +83,7 @@ Both configs are TOML, loaded via `github.com/jmcampanini/go-config-loader`
 name             = "work"
 path             = "~/Code/work-dotfiles"
 profiles         = ["work"]      # required, opt-in; empty/omitted = nothing links
-fail_on_conflict = true          # optional, default true
+ignore_conflicts = false         # optional, default false
 ```
 
 Notes:
@@ -90,7 +92,7 @@ Notes:
   anything from this source. There is no "all declared profiles" default.
 - A profile listed here that the source repo does not declare is a `doctor`
   diagnostic, not a hard error at link time.
-- `fail_on_conflict` is per-source. The CLI flag `--ignore-conflicts` (or
+- `ignore_conflicts` is per-source. The CLI flag `--ignore-conflicts` (or
   similar) overrides to "skip the conflicting file, link the rest, log it" —
   never to destroy existing files.
 
@@ -143,7 +145,7 @@ to create a symlink, four cases:
 | C    | Two registered sources collide on the same projected path                        | First-registered wins; second triggers Case A     |
 | D    | Host repo already has the correct symlink                                        | No-op, no error                                   |
 
-`--ignore-conflicts` (CLI) and `fail_on_conflict = false` (per-source config)
+`--ignore-conflicts` (CLI) and `ignore_conflicts = true` (per-source config)
 flip A/B/C from "error" to "skip and log." Existing files are never silently
 destroyed.
 

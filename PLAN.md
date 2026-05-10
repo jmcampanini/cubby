@@ -5,7 +5,7 @@ produce a knowably working behavior that crosses the real CLI, config loading,
 filesystem state, and command exit codes. Shared internals can grow as needed,
 but the plan favors end-to-end proof over building hidden layers first.
 
-## Milestone 1: Tooling, CLI Shell, and First End-to-End Guard
+## [x] Milestone 1: Tooling, CLI Shell, and First End-to-End Guard
 
 **Outcome:** `cubby` is a buildable Go CLI with project checks in place and one
 real end-to-end behavior: protecting the host repo with `gitignore check` and
@@ -22,7 +22,7 @@ real end-to-end behavior: protecting the host repo with `gitignore check` and
   - `make check`
 - Configure linting through `golangci-lint`.
 - Expose the v0.1 command hierarchy in help output.
-- Load a host `.cubby.toml` with one registered source.
+- Load a host `.cubby.toml` from the current directory with one registered source; `cubby` uses Stow-like ergonomics and must be run from the host repo root.
 - Load that source repo's `cubby.toml`.
 - Implement enough profile discovery to compute the union of declared profiles.
 - Implement `cubby gitignore check`.
@@ -114,7 +114,7 @@ are detected, reported, and never resolved by deleting user files.
 - Detect an unexpected symlink already present at the projected host path.
 - Treat cross-source collisions as conflicts once multi-source config appears
   in this slice's tests.
-- Honor per-source `fail_on_conflict`.
+- Honor per-source `ignore_conflicts`.
 - Add CLI conflict skipping through `--ignore-conflicts` or the final selected
   flag name.
 - Ensure conflict skipping links non-conflicting files and reports skipped
