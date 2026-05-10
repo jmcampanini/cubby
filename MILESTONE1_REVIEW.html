@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cubby Milestone 1 Review</title>
+  <style>
+    :root {
+      --bg: #10151f;
+      --panel: #172131;
+      --panel-2: #1e2b3f;
+      --text: #edf4ff;
+      --muted: #aac0d8;
+      --accent: #7dd3fc;
+      --accent-2: #a7f3d0;
+      --warn: #fde68a;
+      --bad: #fca5a5;
+      --shadow: rgba(0, 0, 0, .35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(125, 211, 252, .18), transparent 28%),
+        radial-gradient(circle at 85% 80%, rgba(167, 243, 208, .14), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+    }
+
+    .deck {
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: clamp(34px, 6vw, 82px);
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(28px) scale(.985);
+      transition: opacity .22s ease, transform .22s ease;
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0) scale(1);
+    }
+
+    .card {
+      width: min(1120px, 100%);
+      min-height: min(680px, calc(100vh - 120px));
+      background: linear-gradient(145deg, rgba(23, 33, 49, .96), rgba(30, 43, 63, .9));
+      border: 1px solid rgba(170, 192, 216, .18);
+      box-shadow: 0 30px 90px var(--shadow);
+      border-radius: 28px;
+      padding: clamp(28px, 4vw, 58px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      inset: auto -120px -160px auto;
+      width: 360px;
+      height: 360px;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, .08);
+      filter: blur(2px);
+    }
+
+    .kicker {
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3 { margin: 0; line-height: 1.05; }
+    h1 { font-size: clamp(54px, 8vw, 96px); letter-spacing: -.055em; max-width: 920px; }
+    h2 { font-size: clamp(38px, 5vw, 68px); letter-spacing: -.045em; margin-bottom: 28px; }
+    h3 { font-size: clamp(24px, 3vw, 34px); letter-spacing: -.025em; margin-bottom: 12px; }
+
+    p, li {
+      color: var(--muted);
+      font-size: clamp(20px, 2.1vw, 28px);
+      line-height: 1.35;
+    }
+
+    p.lead { max-width: 850px; margin-top: 28px; font-size: clamp(23px, 2.5vw, 34px); }
+    ul { padding-left: 1.15em; margin: 16px 0 0; }
+    li { margin: 10px 0; }
+    strong { color: var(--text); }
+
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 24px; }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .tile {
+      background: rgba(255, 255, 255, .045);
+      border: 1px solid rgba(170, 192, 216, .16);
+      border-radius: 22px;
+      padding: 22px;
+      min-height: 150px;
+    }
+
+    .tile p, .tile li { font-size: clamp(17px, 1.55vw, 22px); }
+    .tile .icon { font-size: 34px; margin-bottom: 12px; }
+
+    code, pre {
+      font-family: var(--mono);
+      color: #dbeafe;
+    }
+
+    pre {
+      background: rgba(4, 8, 14, .62);
+      border: 1px solid rgba(170, 192, 216, .16);
+      border-radius: 18px;
+      padding: 20px;
+      overflow: auto;
+      font-size: clamp(16px, 1.55vw, 22px);
+      line-height: 1.45;
+    }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+    .pill {
+      border: 1px solid rgba(125, 211, 252, .38);
+      background: rgba(125, 211, 252, .1);
+      color: #e0f2fe;
+      border-radius: 999px;
+      padding: 10px 15px;
+      font-weight: 750;
+      font-size: clamp(15px, 1.35vw, 19px);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      margin-top: 34px;
+    }
+    .flow .step {
+      background: rgba(255, 255, 255, .045);
+      border: 1px solid rgba(170, 192, 216, .16);
+      border-radius: 22px;
+      padding: 22px;
+      text-align: center;
+      min-height: 150px;
+      display: grid;
+      place-items: center;
+    }
+    .flow .arrow { color: var(--accent); font-size: 38px; font-weight: 900; }
+
+    .footer {
+      position: fixed;
+      left: 28px;
+      right: 28px;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(237, 244, 255, .7);
+      font-size: 14px;
+      letter-spacing: .04em;
+      pointer-events: none;
+    }
+
+    .progress {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      height: 5px;
+      width: 100%;
+      background: rgba(255, 255, 255, .08);
+    }
+    .progress > div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width .2s ease;
+    }
+
+    .controls {
+      position: fixed;
+      right: 28px;
+      top: 22px;
+      display: flex;
+      gap: 8px;
+      z-index: 20;
+    }
+    button {
+      background: rgba(255, 255, 255, .08);
+      color: var(--text);
+      border: 1px solid rgba(170, 192, 216, .18);
+      border-radius: 14px;
+      padding: 10px 13px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: rgba(255, 255, 255, .14); }
+
+    .ok { color: var(--accent-2); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .deck { min-height: 100vh; height: auto; }
+      .slide { position: relative; min-height: 100vh; display: none; }
+      .slide.active { display: grid; }
+      .grid, .grid.three, .flow { grid-template-columns: 1fr; }
+      .flow .arrow { transform: rotate(90deg); }
+      .footer { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls" aria-label="Slide controls">
+    <button id="prev" title="Previous slide">←</button>
+    <button id="next" title="Next slide">→</button>
+  </div>
+
+  <main class="deck">
+    <section class="slide active">
+      <div class="card">
+        <div class="kicker">Milestone 1 Review</div>
+        <h1>Cubby now has its first useful vertical slice</h1>
+        <p class="lead">A buildable Go CLI that loads real Cubby config, discovers source-declared profiles, and protects the host repository with <code>gitignore check</code> and <code>gitignore sync</code>.</p>
+        <div class="pill-row">
+          <span class="pill">Go CLI</span>
+          <span class="pill">Cobra command tree</span>
+          <span class="pill">Config loading</span>
+          <span class="pill">Gitignore guard</span>
+          <span class="pill">E2E tests</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Scope</div>
+        <h2>What Milestone 1 intentionally does</h2>
+        <div class="grid">
+          <div class="tile">
+            <div class="icon">✅</div>
+            <h3>Implements</h3>
+            <ul>
+              <li>Buildable <code>cubby</code> binary</li>
+              <li>Visible v0.1 command surface</li>
+              <li>Host/source config loading</li>
+              <li>Profile union from sources</li>
+              <li><code>gitignore check</code> and <code>sync</code></li>
+            </ul>
+          </div>
+          <div class="tile">
+            <div class="icon">⏳</div>
+            <h3>Defers</h3>
+            <ul>
+              <li><code>link</code> and <code>unlink</code></li>
+              <li>Source file discovery</li>
+              <li>Symlink creation</li>
+              <li>Conflict handling</li>
+              <li>Profile selection behavior</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Project skeleton</div>
+        <h2>Repository now looks like a conventional Go project</h2>
+        <pre><code>cmd/cubby/main.go
+internal/cli/cli.go
+internal/config/config.go
+internal/gitignore/gitignore.go
+test/e2e/cubby_test.go
+
+Makefile
+.golangci.yml
+go.mod
+go.sum</code></pre>
+        <p>Local workflow is repeatable through <code>make build</code>, <code>make test</code>, <code>make lint</code>, and <code>make check</code>.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Command surface</div>
+        <h2>The v0.1 CLI shape is visible</h2>
+        <pre><code>cubby link
+cubby unlink
+cubby prune
+cubby status
+cubby doctor
+cubby profile list
+cubby source list
+cubby gitignore check
+cubby gitignore sync
+cubby lazygit</code></pre>
+        <p>Only the Milestone 1 commands have real behavior. Deferred commands return a clear non-zero <code>not implemented</code> error.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Config loading</div>
+        <h2>Cubby can load a real host plus registered sources</h2>
+        <div class="grid">
+          <div class="tile">
+            <h3>Host config</h3>
+            <pre><code>[[source]]
+name = "work"
+path = "~/Code/work-dotfiles"
+profiles = ["work"]
+fail_on_conflict = true</code></pre>
+          </div>
+          <div class="tile">
+            <h3>Source config</h3>
+            <pre><code>profiles = ["work"]
+
+ignore = [
+  "**/*.draft.*",
+]</code></pre>
+          </div>
+        </div>
+        <p>Configs are parsed through <code>github.com/jmcampanini/go-config-loader</code> behind <code>internal/config</code>.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Host discovery</div>
+        <h2>Commands work from nested directories</h2>
+        <div class="flow">
+          <div class="step"><strong>Start cwd</strong><br><span class="muted">host/nested/dir</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>Walk upward</strong><br><span class="muted">find .cubby.toml</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>Use root</strong><br><span class="muted">update host/.gitignore</span></div>
+        </div>
+        <p>Source paths support absolute paths, <code>~/</code> expansion, and relative paths resolved from the discovered host root.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Profile model</div>
+        <h2>Required gitignore patterns come from source declarations</h2>
+        <p>Milestone 1 computes the sorted union of profiles declared by registered source repos.</p>
+        <pre><code>source A: profiles = ["work", "client"]
+source B: profiles = ["work", "home"]
+
+union: client, home, work</code></pre>
+        <p>Importantly, <code>gitignore check/sync</code> use source-declared profiles, not host <code>source.profiles</code> selections.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Gitignore guard</div>
+        <h2>The first real end-to-end behavior</h2>
+        <div class="grid three">
+          <div class="tile">
+            <h3>Compute</h3>
+            <p>For each profile:</p>
+            <pre><code>*.work.*
+*.work</code></pre>
+          </div>
+          <div class="tile">
+            <h3>Check</h3>
+            <p>Read host <code>.gitignore</code>, treating missing files as empty.</p>
+          </div>
+          <div class="tile">
+            <h3>Sync</h3>
+            <p>Append missing patterns once, with readable newline handling.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Script-friendly output</div>
+        <h2>Missing patterns are printed plainly</h2>
+        <pre><code>$ cubby gitignore check
+*.work.*
+*.work
+
+$ echo $?
+1
+
+$ cubby gitignore sync
+*.work.*
+*.work
+
+$ cubby gitignore check
+$ echo $?
+0</code></pre>
+        <p>Errors go to stderr through the normal command path; no JSON or fancy terminal UI is required for Milestone 1.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Validation</div>
+        <h2>Obvious config problems fail clearly</h2>
+        <div class="grid">
+          <div class="tile"><h3>Missing host config</h3><p>No <code>.cubby.toml</code> found from cwd upward.</p></div>
+          <div class="tile"><h3>Missing source path</h3><p>Registered source path does not exist.</p></div>
+          <div class="tile"><h3>Missing source config</h3><p>Source repo lacks <code>cubby.toml</code>.</p></div>
+          <div class="tile"><h3>No profiles</h3><p>Source config declares no usable profiles.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Tests</div>
+        <h2>Automated coverage proves the slice</h2>
+        <ul>
+          <li>Unit tests for profile union and gitignore pattern logic</li>
+          <li>Help-output tests for root and gitignore commands</li>
+          <li>End-to-end tests that build and run the real binary</li>
+          <li>Filesystem tests for temporary host/source repos</li>
+          <li>Nested cwd test verifies root <code>.gitignore</code> updates</li>
+          <li>Idempotency test ensures no duplicate patterns</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Verification</div>
+        <h2>The milestone check is green</h2>
+        <pre><code>$ make check
+go build -o cubby ./cmd/cubby
+go test ./...
+0 issues.</code></pre>
+        <div class="pill-row">
+          <span class="pill ok">build passes</span>
+          <span class="pill ok">tests pass</span>
+          <span class="pill ok">lint passes</span>
+          <span class="pill ok">E2E passes</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <div class="kicker">Outcome</div>
+        <h2>Milestone 1 is ready to demo</h2>
+        <p class="lead">From a clean checkout, Cubby can build, show its planned command surface, load host/source config, detect unsafe missing profile ignore patterns, and repair the host <code>.gitignore</code> idempotently.</p>
+        <div class="pill-row">
+          <span class="pill">Next: link/unlink</span>
+          <span class="pill">Next: file discovery</span>
+          <span class="pill">Next: symlinks</span>
+          <span class="pill">Next: conflicts</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer">
+    <div>Cubby Milestone 1 Review</div>
+    <div><span id="counter">1 / 12</span> · Use ← → or Space</div>
+  </div>
+  <div class="progress"><div id="progress"></div></div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    let index = 0;
+
+    function show(nextIndex) {
+      index = Math.max(0, Math.min(slides.length - 1, nextIndex));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+      counter.textContent = `${index + 1} / ${slides.length}`;
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      location.hash = `slide-${index + 1}`;
+    }
+
+    function fromHash() {
+      const match = location.hash.match(/^#slide-(\d+)$/);
+      if (match) show(Number(match[1]) - 1);
+      else show(0);
+    }
+
+    document.getElementById('prev').addEventListener('click', () => show(index - 1));
+    document.getElementById('next').addEventListener('click', () => show(index + 1));
+
+    document.addEventListener('keydown', (event) => {
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) {
+        event.preventDefault();
+        show(index + 1);
+      }
+      if (['ArrowLeft', 'PageUp', 'Backspace'].includes(event.key)) {
+        event.preventDefault();
+        show(index - 1);
+      }
+      if (event.key === 'Home') show(0);
+      if (event.key === 'End') show(slides.length - 1);
+    });
+
+    window.addEventListener('hashchange', fromHash);
+    fromHash();
+  </script>
+</body>
+</html>
