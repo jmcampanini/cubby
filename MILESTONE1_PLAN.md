@@ -55,8 +55,8 @@ Milestone 1 does not implement `link`, `unlink`, source file discovery, symlink 
 
 **Tasks:**
 
-- Define host config models for `.cubby.toml` with one or more `[[source]]` entries containing `name`, `path`, optional `profiles`, and optional `fail_on_conflict`, while Milestone 1 tests exercise one source.
-- Parse host `profiles` and `fail_on_conflict` now so the config shape matches `SPEC.md`, even though Milestone 1 does not yet use them for linking.
+- Define host config models for `.cubby.toml` with one or more `[[source]]` entries containing `name`, `path`, optional `profiles`, and optional `ignore_conflicts`, while Milestone 1 tests exercise one source.
+- Parse host `profiles` and `ignore_conflicts` now so the config shape matches `SPEC.md`, even though Milestone 1 does not yet use them for linking.
 - Define source config models for `cubby.toml` with `profiles` and optional `ignore`; parse `ignore` for schema compatibility, though Milestone 1 gitignore behavior uses only declared profiles.
 - Load the host config from the current host repo.
 - Resolve source paths, including absolute paths, `~` expansion, and relative paths resolved from the discovered host root.

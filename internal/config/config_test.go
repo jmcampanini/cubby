@@ -17,7 +17,7 @@ func TestLoadProjectDiscoversHostRootAndUnionsDeclaredProfiles(t *testing.T) {
 
 	mustWrite(t, filepath.Join(src1, SourceConfigFileName), "profiles = [\"work\", \"client\"]\n")
 	mustWrite(t, filepath.Join(src2, SourceConfigFileName), "profiles = [\"work\", \"home\"]\n")
-	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"one\"\npath = \"../src1\"\nprofiles = [\"work\"]\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"one\"\npath = \"../src1\"\nprofiles = [\"work\"]\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\nignore_conflicts = true\n")
 
 	project, err := LoadProject(filepath.Join(host, "nested", "dir"))
 	if err != nil {
@@ -32,6 +32,12 @@ func TestLoadProjectDiscoversHostRootAndUnionsDeclaredProfiles(t *testing.T) {
 	assertStringSlicesEqual(t, got, want)
 	if project.Sources[0].ResolvedPath != src1 {
 		t.Fatalf("first source path = %q, want %q", project.Sources[0].ResolvedPath, src1)
+	}
+	if project.Sources[0].IgnoreConflicts {
+		t.Fatalf("first source IgnoreConflicts = true, want default false")
+	}
+	if !project.Sources[1].IgnoreConflicts {
+		t.Fatalf("second source IgnoreConflicts = false, want parsed true")
 	}
 }
 

@@ -114,7 +114,7 @@ are detected, reported, and never resolved by deleting user files.
 - Detect an unexpected symlink already present at the projected host path.
 - Treat cross-source collisions as conflicts once multi-source config appears
   in this slice's tests.
-- Honor per-source `fail_on_conflict`.
+- Honor per-source `ignore_conflicts`.
 - Add CLI conflict skipping through `--ignore-conflicts` or the final selected
   flag name.
 - Ensure conflict skipping links non-conflicting files and reports skipped
