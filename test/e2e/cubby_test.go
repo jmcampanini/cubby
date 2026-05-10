@@ -146,7 +146,7 @@ func buildCubby(t *testing.T) string {
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/cubby")
+	cmd := exec.Command("go", "build", "-o", bin, ".")
 	cmd.Dir = root
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

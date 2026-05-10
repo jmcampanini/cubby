@@ -3,7 +3,7 @@
 BIN ?= cubby
 
 build:
-	go build -o $(BIN) ./cmd/cubby
+	go build -o $(BIN) .
 
 test:
 	go test ./...
