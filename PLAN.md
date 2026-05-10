@@ -45,32 +45,129 @@ real end-to-end behavior: protecting the host repo with `gitignore check` and
 ## Milestone 2: Single-Source Link and Unlink Smoke Slice
 
 **Outcome:** The core smoke test from `SPEC.md` passes for one host repo, one
-source repo, and one selected profile.
+source repo, and one explicitly selected profile.
 
-**Scope:**
+**Guiding decisions:**
 
-- Implement `cubby link --profile <name>` for one registered source.
-- Match profile files using declared source profiles.
-- Preserve source-relative paths and profile suffixes in the host repo.
-- Create relative symlinks from the host repo into the source repo.
-- Create parent directories as needed.
-- Treat a correctly linked file as an idempotent no-op.
-- Implement `cubby unlink --profile <name>` for links created by this slice.
-- Add an end-to-end test covering:
-  - create host/source repos
-  - seed `src/nvim/init.work.lua`
-  - link `work`
-  - assert the host symlink is relative and resolves to the source file
-  - run gitignore check/sync
-  - unlink `work`
-  - assert the symlink is gone
+- `link` and `unlink` require `--profile` in this slice. They are
+  profile-scoped commands and must not infer "all profiles". `$CUBBY_PROFILE`
+  fallback is deferred to Milestone 3.
+- Profile filenames are matched by exact dot segment, not fuzzy substring:
+  `*.<profile>.*` and `*.<profile>` are valid; bare `.<profile>` is not.
+- Multi-dot files are preserved as-is. For profile `work`,
+  `archive.work.tar.gz` links to `archive.work.tar.gz`.
+- Dotfiles work when the profile is a suffix/segment. For profile `work`,
+  `.zshrc.work`, `.zshrc.work.local`, and `.gitignore.work` are valid, while
+  `.work` is unsupported.
+- Cubby preserves source-relative paths and profile suffixes. It does not turn
+  `.zshrc.work` into `.zshrc`; downstream host tooling remains responsible for
+  consuming profile-scoped files.
+
+**Phase 1: Add the end-to-end smoke test first**
+
+- Add an e2e test that creates throwaway `host/` and `src/` directories.
+- Seed `src/cubby.toml` with `profiles = ["work"]`.
+- Seed `host/.cubby.toml` with one registered source and `profiles = ["work"]`.
+- Seed `src/nvim/init.work.lua`.
+- Run `cubby link --profile work` from the host root.
+- Assert `host/nvim/init.work.lua` exists, is a relative symlink, and resolves
+  to `src/nvim/init.work.lua`.
+- Run `cubby link --profile work` again and assert it succeeds as an
+  idempotent no-op.
+- Run the existing gitignore check/sync flow.
+- Run `cubby unlink --profile work` and assert the symlink is gone.
+- Add a regular host file at a projected profile path and assert `unlink`
+  leaves it alone.
+
+**Phase 2: Add profile flag handling for `link` and `unlink`**
+
+- Replace the placeholder profile commands with real Cobra commands.
+- Add a small command helper that reads `--profile` values.
+- Require at least one non-empty `--profile` value for now.
+- Trim empty values and reject an effectively empty selection.
+- Allow Cobra's current string-slice behavior, but defer full repeated flag,
+  CSV, and env-var semantics to Milestone 3.
+
+**Phase 3: Add profile-file discovery**
+
+- Add a small internal package for discovering source profile files.
+- Walk the source repo with `filepath.WalkDir`.
+- Skip directories, `.git/`, and the source `cubby.toml` config.
+- Consider regular files only in this slice; source symlink handling is
+  deferred unless needed by tests.
+- Match against declared source profiles only.
+- Match basenames using the valid forms:
+  - `*.<profile>.*`, e.g. `nvim/init.work.lua`, `archive.work.tar.gz`
+  - `*.<profile>`, e.g. `Makefile.work`, `.gitignore.work`, `.zshrc.work`
+- Do not match the unsupported literal `.<profile>` basename, e.g. `.work`.
+- Avoid substring false positives such as `homework` matching profile `work` or
+  `workbench` matching profile `work`.
+- Return source-relative paths so link/unlink can project them into the host
+  repo unchanged.
+
+**Phase 4: Implement `cubby link --profile <name>`**
+
+- Load the project via `config.LoadProject()`.
+- For this slice, operate on the single registered source used by the smoke
+  test while keeping the implementation naturally iterable over sources.
+- Skip a selected profile for a source if the source does not declare it.
+- Discover matching profile files for the selected profile.
+- For each match:
+  - Compute the source file path from the source root and source-relative path.
+  - Compute the host path from the host root and the same relative path.
+  - Create parent directories in the host repo as needed.
+  - Compute a relative symlink target with `filepath.Rel(filepath.Dir(hostPath), sourcePath)`.
+  - Create the symlink if the host path is absent.
+  - Treat an existing symlink that resolves to the same source file as an
+    idempotent no-op.
+  - Return an error for an existing regular file or unexpected symlink; never
+    overwrite user files.
+
+**Phase 5: Implement `cubby unlink --profile <name>`**
+
+- Load the project and discover matching selected-profile source files.
+- For each projected host path:
+  - Missing path: no-op.
+  - Regular file: leave it alone.
+  - Correct symlink to the expected source file: remove it.
+  - Unexpected symlink: leave it alone in this slice.
+- Do not remove parent directories unless a later milestone explicitly needs
+  empty-directory cleanup.
+
+**Phase 6: Add focused unit tests**
+
+- Verify `init.work.lua` matches profile `work`.
+- Verify `archive.work.tar.gz` matches profile `work`.
+- Verify `Makefile.work`, `.gitignore.work`, and `.zshrc.work` match profile
+  `work`.
+- Verify `.work` does not match.
+- Verify `script.workbench.sh` and `thing.homework` do not match profile
+  `work`.
+- Verify lookalikes for undeclared profiles are ignored.
+- Verify nested source-relative paths are preserved.
+- Verify relative symlink target computation for nested host paths.
+- Verify an existing correct symlink is detected as idempotent.
 
 **Verification:**
 
 - The full smoke test from `SPEC.md` passes.
+- `cubby link --profile work` creates relative symlinks into the source repo.
 - Re-running `link` over an existing correct symlink succeeds without changes.
-- `unlink` removes the selected profile symlink.
+- `cubby unlink --profile work` removes the selected profile symlink.
 - `unlink` leaves regular host files alone.
+- Existing Milestone 1 gitignore tests still pass.
+- `make test` passes.
+- `make lint` passes.
+- `make check` passes.
+
+**Deferred to later milestones:**
+
+- `$CUBBY_PROFILE` fallback and flag-over-env precedence.
+- Complete repeated `--profile` and CSV multi-profile semantics.
+- Source `ignore` rules.
+- Conflict skipping via config or CLI flag.
+- Multi-source behavior and cross-source collisions.
+- Status/prune/doctor state discovery.
 
 ## Milestone 3: Profile Selection and Discovery Slice
 
