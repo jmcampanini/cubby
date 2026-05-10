@@ -1,4 +1,4 @@
-.PHONY: build test lint check clean
+.PHONY: build test fmt lint tidy check clean
 
 BIN ?= cubby
 
@@ -8,6 +8,9 @@ build:
 test:
 	go test ./...
 
+fmt:
+	gofmt -w .
+
 lint:
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -15,7 +18,11 @@ lint:
 		go vet ./...; \
 	fi
 
-check: build test lint
+tidy:
+	go mod tidy
+
+check: fmt tidy test lint
 
 clean:
 	rm -f $(BIN)
+	go clean -testcache
