@@ -24,14 +24,30 @@ type Project struct {
 	Sources  []RegisteredSource
 }
 
-// LoadProject discovers the host root from startDir and loads the host config plus all registered sources.
-func LoadProject(startDir string) (*Project, error) {
-	hostRoot, err := DiscoverHostRoot(startDir)
+// LoadProject loads the host config from the current directory plus all registered sources.
+func LoadProject() (*Project, error) {
+	hostRoot, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get current directory: %w", err)
 	}
+	hostRoot, err = filepath.Abs(hostRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve current directory %q: %w", hostRoot, err)
+	}
+	hostRoot = filepath.Clean(hostRoot)
 
 	hostFile := filepath.Join(hostRoot, HostConfigFileName)
+	info, err := os.Stat(hostFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%s not found in current directory; run cubby from the host repo root", HostConfigFileName)
+		}
+		return nil, fmt.Errorf("stat host config %q: %w", hostFile, err)
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("host config %q is a directory", hostFile)
+	}
+
 	hostCfg, err := loadRequiredFile(hostFile, DefaultHostConfig)
 	if err != nil {
 		return nil, fmt.Errorf("load host config %q: %w", hostFile, err)
@@ -58,39 +74,6 @@ func LoadProject(startDir string) (*Project, error) {
 	}
 
 	return project, nil
-}
-
-// DiscoverHostRoot walks upward from startDir until it finds .cubby.toml.
-func DiscoverHostRoot(startDir string) (string, error) {
-	if startDir == "" {
-		startDir = "."
-	}
-	abs, err := filepath.Abs(startDir)
-	if err != nil {
-		return "", fmt.Errorf("resolve start directory %q: %w", startDir, err)
-	}
-	info, err := os.Stat(abs)
-	if err != nil {
-		return "", fmt.Errorf("stat start directory %q: %w", abs, err)
-	}
-	if !info.IsDir() {
-		abs = filepath.Dir(abs)
-	}
-
-	for {
-		candidate := filepath.Join(abs, HostConfigFileName)
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return abs, nil
-		} else if err != nil && !os.IsNotExist(err) {
-			return "", fmt.Errorf("stat host config %q: %w", candidate, err)
-		}
-
-		parent := filepath.Dir(abs)
-		if parent == abs {
-			return "", fmt.Errorf("missing host config %s: no %s found from current directory upward", HostConfigFileName, HostConfigFileName)
-		}
-		abs = parent
-	}
 }
 
 // DeclaredProfiles returns the sorted union of profiles declared by registered sources.

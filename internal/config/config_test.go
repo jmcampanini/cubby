@@ -3,15 +3,16 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestLoadProjectDiscoversHostRootAndUnionsDeclaredProfiles(t *testing.T) {
+func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *testing.T) {
 	tmp := t.TempDir()
 	host := filepath.Join(tmp, "host")
 	src1 := filepath.Join(tmp, "src1")
 	src2 := filepath.Join(tmp, "src2")
-	mustMkdir(t, filepath.Join(host, "nested", "dir"))
+	mustMkdir(t, host)
 	mustMkdir(t, src1)
 	mustMkdir(t, src2)
 
@@ -19,25 +20,46 @@ func TestLoadProjectDiscoversHostRootAndUnionsDeclaredProfiles(t *testing.T) {
 	mustWrite(t, filepath.Join(src2, SourceConfigFileName), "profiles = [\"work\", \"home\"]\n")
 	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"one\"\npath = \"../src1\"\nprofiles = [\"work\"]\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\nignore_conflicts = true\n")
 
-	project, err := LoadProject(filepath.Join(host, "nested", "dir"))
+	mustChdir(t, host)
+
+	project, err := LoadProject()
 	if err != nil {
 		t.Fatalf("LoadProject() error = %v", err)
 	}
-	if project.HostRoot != host {
-		t.Fatalf("HostRoot = %q, want %q", project.HostRoot, host)
+	wantHost := realPath(t, host)
+	if project.HostRoot != wantHost {
+		t.Fatalf("HostRoot = %q, want %q", project.HostRoot, wantHost)
 	}
 
 	got := project.DeclaredProfiles()
 	want := []string{"client", "home", "work"}
 	assertStringSlicesEqual(t, got, want)
-	if project.Sources[0].ResolvedPath != src1 {
-		t.Fatalf("first source path = %q, want %q", project.Sources[0].ResolvedPath, src1)
+	wantSrc1 := realPath(t, src1)
+	if project.Sources[0].ResolvedPath != wantSrc1 {
+		t.Fatalf("first source path = %q, want %q", project.Sources[0].ResolvedPath, wantSrc1)
 	}
 	if project.Sources[0].IgnoreConflicts {
 		t.Fatalf("first source IgnoreConflicts = true, want default false")
 	}
 	if !project.Sources[1].IgnoreConflicts {
 		t.Fatalf("second source IgnoreConflicts = false, want parsed true")
+	}
+}
+
+func TestLoadProjectRequiresHostConfigInCurrentDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	nested := filepath.Join(host, "nested")
+	mustMkdir(t, nested)
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"work\"\npath = \"../src\"\n")
+	mustChdir(t, nested)
+
+	_, err := LoadProject()
+	if err == nil {
+		t.Fatalf("LoadProject() error = nil, want missing current-directory host config error")
+	}
+	if !strings.Contains(err.Error(), "current directory") || !strings.Contains(err.Error(), "host repo root") {
+		t.Fatalf("LoadProject() error = %q, want root-only guidance", err)
 	}
 }
 
@@ -80,6 +102,31 @@ func assertStringSlicesEqual(t *testing.T, got, want []string) {
 			t.Fatalf("got %v, want %v", got, want)
 		}
 	}
+}
+
+func realPath(t *testing.T, path string) string {
+	t.Helper()
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", path, err)
+	}
+	return real
+}
+
+func mustChdir(t *testing.T, path string) {
+	t.Helper()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	if err := os.Chdir(path); err != nil {
+		t.Fatalf("Chdir(%q) error = %v", path, err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWD); err != nil {
+			t.Fatalf("restore working directory %q error = %v", oldWD, err)
+		}
+	})
 }
 
 func mustMkdir(t *testing.T, path string) {

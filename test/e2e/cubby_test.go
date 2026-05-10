@@ -17,7 +17,7 @@ type runResult struct {
 	code   int
 }
 
-func TestGitignoreCheckSyncEndToEndFromNestedDirectory(t *testing.T) {
+func TestGitignoreCheckSyncEndToEndFromHostRoot(t *testing.T) {
 	bin := buildCubby(t)
 	tmp := t.TempDir()
 	host := filepath.Join(tmp, "host")
@@ -28,7 +28,7 @@ func TestGitignoreCheckSyncEndToEndFromNestedDirectory(t *testing.T) {
 	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
 	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\nprofiles = [\"work\"]\n")
 
-	checkBefore := runCubby(t, bin, nested, "gitignore", "check")
+	checkBefore := runCubby(t, bin, host, "gitignore", "check")
 	if checkBefore.code == 0 {
 		t.Fatalf("gitignore check before sync code = 0, stdout = %s", checkBefore.stdout)
 	}
@@ -38,7 +38,7 @@ func TestGitignoreCheckSyncEndToEndFromNestedDirectory(t *testing.T) {
 		t.Fatalf("gitignore check before sync stderr = %q, want empty", checkBefore.stderr)
 	}
 
-	sync := runCubby(t, bin, nested, "gitignore", "sync")
+	sync := runCubby(t, bin, host, "gitignore", "sync")
 	if sync.code != 0 {
 		t.Fatalf("gitignore sync code = %d, stderr = %s", sync.code, sync.stderr)
 	}
@@ -61,7 +61,7 @@ func TestGitignoreCheckSyncEndToEndFromNestedDirectory(t *testing.T) {
 		t.Fatalf("gitignore check after sync stdout = %q, want empty", checkAfter.stdout)
 	}
 
-	syncAgain := runCubby(t, bin, nested, "gitignore", "sync")
+	syncAgain := runCubby(t, bin, host, "gitignore", "sync")
 	if syncAgain.code != 0 {
 		t.Fatalf("second gitignore sync code = %d, stderr = %s", syncAgain.code, syncAgain.stderr)
 	}
@@ -74,6 +74,15 @@ func TestGitignoreCheckSyncEndToEndFromNestedDirectory(t *testing.T) {
 	}
 	if got := strings.Count(content, "*.work\n"); got != 1 {
 		t.Fatalf("*.work count = %d, want 1 in %q", got, content)
+	}
+
+	nestedResult := runCubby(t, bin, nested, "gitignore", "sync")
+	if nestedResult.code == 0 {
+		t.Fatalf("nested gitignore sync code = 0, want failure")
+	}
+	assertContains(t, nestedResult.stderr, "run cubby from the host repo root")
+	if _, err := os.Stat(filepath.Join(nested, ".gitignore")); !os.IsNotExist(err) {
+		t.Fatalf("nested .gitignore stat error = %v, want not exist", err)
 	}
 }
 

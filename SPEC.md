@@ -4,8 +4,8 @@
 more **source** dotfiles repos into a single **host** dotfiles repo via relative
 symlinks.
 
-It is intended to be invoked from the host repo. Whatever existing tooling the
-host repo uses (stow, chezmoi, plain symlinks to `$HOME`) continues to work
+It is intended to be invoked from the host repo root. Whatever existing tooling
+the host repo uses (stow, chezmoi, plain symlinks to `$HOME`) continues to work
 unchanged: `cubby` only manipulates files inside the host repo's tree.
 
 > **Terminology note.** "Host" / "source" describe repo *roles*, not symlink
@@ -17,8 +17,10 @@ unchanged: `cubby` only manipulates files inside the host repo's tree.
 
 ## 1. Concepts
 
-- **Host repo.** The user's main dotfiles repo. `cubby` is invoked from here.
-  Owns the registry of source repos and global behavioral defaults.
+- **Host repo.** The user's main dotfiles repo. `cubby` is invoked from the
+  host repo root, using Stow-like ergonomics rather than walking upward to
+  discover a root. Owns the registry of source repos and global behavioral
+  defaults.
 - **Source repo.** A separate git repo containing profile-scoped files.
   Self-describing: declares which profiles it provides and which files to
   ignore.
