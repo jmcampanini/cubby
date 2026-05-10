@@ -17,6 +17,90 @@ type runResult struct {
 	code   int
 }
 
+func TestLinkUnlinkSingleSourceSmoke(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	sourceFile := filepath.Join(src, "nvim", "init.work.lua")
+	hostFile := filepath.Join(host, "nvim", "init.work.lua")
+	mustMkdir(t, host)
+	mustMkdir(t, src)
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\nprofiles = [\"work\"]\n")
+	mustWrite(t, sourceFile, "-- work\n")
+
+	link := runCubby(t, bin, host, "link", "--profile", "work")
+	if link.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", link.code, link.stdout, link.stderr)
+	}
+	info, err := os.Lstat(hostFile)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error = %v", hostFile, err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("%q mode = %v, want symlink", hostFile, info.Mode())
+	}
+	target, err := os.Readlink(hostFile)
+	if err != nil {
+		t.Fatalf("Readlink(%q) error = %v", hostFile, err)
+	}
+	if filepath.IsAbs(target) {
+		t.Fatalf("symlink target = %q, want relative", target)
+	}
+	resolved, err := filepath.EvalSymlinks(hostFile)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", hostFile, err)
+	}
+	wantResolved, err := filepath.EvalSymlinks(sourceFile)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", sourceFile, err)
+	}
+	if resolved != wantResolved {
+		t.Fatalf("resolved symlink = %q, want %q", resolved, wantResolved)
+	}
+
+	linkAgain := runCubby(t, bin, host, "link", "--profile", "work")
+	if linkAgain.code != 0 {
+		t.Fatalf("second link code = %d, stdout = %s, stderr = %s", linkAgain.code, linkAgain.stdout, linkAgain.stderr)
+	}
+
+	checkBefore := runCubby(t, bin, host, "gitignore", "check")
+	if checkBefore.code == 0 {
+		t.Fatalf("gitignore check before sync code = 0, stdout = %s", checkBefore.stdout)
+	}
+	assertContains(t, checkBefore.stdout, "*.work.*")
+	assertContains(t, checkBefore.stdout, "*.work")
+	sync := runCubby(t, bin, host, "gitignore", "sync")
+	if sync.code != 0 {
+		t.Fatalf("gitignore sync code = %d, stderr = %s", sync.code, sync.stderr)
+	}
+	checkAfter := runCubby(t, bin, host, "gitignore", "check")
+	if checkAfter.code != 0 {
+		t.Fatalf("gitignore check after sync code = %d, stdout = %s, stderr = %s", checkAfter.code, checkAfter.stdout, checkAfter.stderr)
+	}
+
+	unlink := runCubby(t, bin, host, "unlink", "--profile", "work")
+	if unlink.code != 0 {
+		t.Fatalf("unlink code = %d, stdout = %s, stderr = %s", unlink.code, unlink.stdout, unlink.stderr)
+	}
+	if _, err := os.Lstat(hostFile); !os.IsNotExist(err) {
+		t.Fatalf("Lstat(%q) error = %v, want not exist", hostFile, err)
+	}
+
+	mustWrite(t, hostFile, "host-owned\n")
+	unlinkRegular := runCubby(t, bin, host, "unlink", "--profile", "work")
+	if unlinkRegular.code != 0 {
+		t.Fatalf("unlink regular code = %d, stdout = %s, stderr = %s", unlinkRegular.code, unlinkRegular.stdout, unlinkRegular.stderr)
+	}
+	if got := mustRead(t, hostFile); got != "host-owned\n" {
+		t.Fatalf("regular host file content = %q, want untouched", got)
+	}
+}
+
 func TestGitignoreCheckSyncEndToEndFromHostRoot(t *testing.T) {
 	bin := buildCubby(t)
 	tmp := t.TempDir()

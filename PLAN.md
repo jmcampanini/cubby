@@ -42,7 +42,7 @@ real end-to-end behavior: protecting the host repo with `gitignore check` and
 - `gitignore sync` appends missing patterns and a second `gitignore check`
   succeeds.
 
-## Milestone 2: Single-Source Link and Unlink Smoke Slice
+## [x] Milestone 2: Single-Source Link and Unlink Smoke Slice
 
 **Outcome:** The core smoke test from `SPEC.md` passes for one host repo, one
 source repo, and one explicitly selected profile.

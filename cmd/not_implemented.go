@@ -6,12 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func profileNotImplementedCommand(use, short string) *cobra.Command {
-	cmd := notImplementedCommand(use, short)
-	cmd.Flags().StringSlice("profile", nil, "profile name (repeatable or comma-separated)")
-	return cmd
-}
-
 func sourceNotImplementedCommand(use, short string) *cobra.Command {
 	cmd := notImplementedCommand(use, short)
 	cmd.Flags().String("source", "", "registered source name")
