@@ -34,7 +34,7 @@ func unlinkCommand() *cobra.Command {
 
 func unlinkProfiles(project *config.Project, profiles []string) error {
 	for _, source := range project.Sources {
-		files, err := profilefiles.Discover(source.ResolvedPath, source.Config.Profiles, profiles)
+		files, err := profilefiles.Discover(source.ResolvedPath, source.Config.Profiles, sourceSelectedProfiles(source, profiles))
 		if err != nil {
 			return fmt.Errorf("discover profile files for source %q: %w", source.Name, err)
 		}

@@ -1,10 +1,13 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/jmcampanini/cubby/internal/config"
+)
 
 func TestSelectedProfilesRequiresNonEmptyProfileFlag(t *testing.T) {
 	cmd := linkCommand()
-	cmd.SetArgs([]string{"--profile", "  "})
 	if err := cmd.ParseFlags([]string{"--profile", "  "}); err != nil {
 		t.Fatalf("ParseFlags() error = %v", err)
 	}
@@ -22,7 +25,29 @@ func TestSelectedProfilesTrimsAndDeduplicates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("selectedProfiles() error = %v", err)
 	}
-	if len(profiles) != 1 || profiles[0] != "work" {
-		t.Fatalf("selectedProfiles() = %#v, want [work]", profiles)
+	assertProfilesEqual(t, profiles, []string{"work"})
+}
+
+func TestSourceSelectedProfilesRequiresHostOptIn(t *testing.T) {
+	source := config.RegisteredSource{HostSource: config.HostSource{Profiles: []string{"work", "client"}}}
+	got := sourceSelectedProfiles(source, []string{"home", "work", "client", "work"})
+	assertProfilesEqual(t, got, []string{"work", "client"})
+}
+
+func TestSourceSelectedProfilesOmittedHostProfilesSelectNothing(t *testing.T) {
+	source := config.RegisteredSource{}
+	got := sourceSelectedProfiles(source, []string{"work"})
+	assertProfilesEqual(t, got, nil)
+}
+
+func assertProfilesEqual(t *testing.T, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("profiles = %#v, want %#v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("profiles = %#v, want %#v", got, want)
+		}
 	}
 }

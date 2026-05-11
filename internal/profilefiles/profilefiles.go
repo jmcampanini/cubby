@@ -99,11 +99,9 @@ func MatchBasename(base, profile string) bool {
 
 func selectedDeclaredProfiles(declaredProfiles, selectedProfiles []string) []string {
 	declared := stringSet(declaredProfiles)
-	var candidates map[string]struct{}
-	if len(selectedProfiles) == 0 {
-		candidates = declared
-	} else {
-		candidates = stringSet(selectedProfiles)
+	candidates := stringSet(selectedProfiles)
+	if len(candidates) == 0 {
+		return nil
 	}
 
 	profiles := make([]string, 0, len(candidates))

@@ -31,6 +31,19 @@ func TestMatchBasenameForValidProfileForms(t *testing.T) {
 	}
 }
 
+func TestDiscoverWithEmptySelectionReturnsNoFiles(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "nvim", "init.work.lua"), "-- work\n")
+
+	files, err := Discover(root, []string{"work"}, nil)
+	if err != nil {
+		t.Fatalf("Discover() error = %v", err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("Discover() = %#v, want no files", files)
+	}
+}
+
 func TestDiscoverPreservesNestedPathsAndIgnoresUndeclaredLookalikes(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, filepath.Join(root, "cubby.toml"), "profiles = [\"work\"]\n")
