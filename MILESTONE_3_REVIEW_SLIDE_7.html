@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Milestone 3 Review — Slide 7</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a33;
+      --panel-2: #172241;
+      --ink: #eef4ff;
+      --muted: #9fb0d0;
+      --line: #2a3a68;
+      --accent: #7dd3fc;
+      --good: #86efac;
+      --warn: #fde68a;
+      --bad: #fca5a5;
+      --code: #07111f;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(1rem, 3vw, 3rem);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.18), transparent 28rem),
+        radial-gradient(circle at 85% 10%, rgba(192, 132, 252, 0.16), transparent 25rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+
+    main {
+      width: min(1240px, 100%);
+      background: linear-gradient(180deg, rgba(18, 26, 51, 0.96), rgba(14, 21, 42, 0.96));
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: 28px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+      padding: clamp(1.25rem, 3vw, 3rem);
+    }
+
+    .kicker {
+      color: var(--accent);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      margin-bottom: 0.45rem;
+    }
+
+    h1 {
+      margin: 0 0 1.25rem;
+      font-size: clamp(2rem, 5vw, 4.25rem);
+      letter-spacing: -0.05em;
+      line-height: 1.02;
+    }
+
+    h2 {
+      margin: 0 0 0.7rem;
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      letter-spacing: -0.02em;
+    }
+
+    p, li {
+      color: var(--muted);
+      font-size: clamp(1rem, 1.4vw, 1.18rem);
+      line-height: 1.5;
+    }
+
+    code, pre { font-family: var(--mono); }
+    code { color: #dff6ff; }
+
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin: 0;
+      padding: 1rem;
+      border-radius: 16px;
+      background: var(--code);
+      border: 1px solid var(--line);
+      color: #d7e7ff;
+      line-height: 1.45;
+      font-size: clamp(0.78rem, 1vw, 0.96rem);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .card {
+      background: rgba(23, 34, 65, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1rem;
+      min-width: 0;
+    }
+
+    .callout {
+      margin-top: 1rem;
+      border-left: 5px solid var(--bad);
+      padding: 0.8rem 1rem;
+      background: rgba(252, 165, 165, 0.08);
+      border-radius: 0 16px 16px 0;
+    }
+
+    .checklist { margin: 0; padding-left: 1.3rem; }
+    .checklist li { margin: 0.48rem 0; }
+    .checklist li::marker { color: var(--accent); }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .box {
+      padding: 0.65rem 0.8rem;
+      border-radius: 14px;
+      background: rgba(7, 17, 31, 0.85);
+      border: 1px solid var(--line);
+      font-weight: 800;
+    }
+
+    .arrow { color: var(--accent); font-weight: 900; }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="kicker">Slide 7 · Config-loader integration</div>
+    <h1>What implementation should smell like</h1>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Expected code shape</h2>
+        <pre><code>type HostConfig struct {
+    Profiles []string `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+    Sources  []HostSource `toml:"source"`
+}
+
+envLoader, _ := configloader.NewEnvironmentLoader[HostConfig](
+    "cubby",
+    configloader.OSEnv(),
+)
+
+flagLoader, _ := pflagloader.NewLoader[HostConfig](cmd.Flags())
+
+host, _, err := configloader.Load(
+    defaults,
+    fileLoader,  // host .cubby.toml
+    envLoader,   // CUBBY_PROFILE
+    flagLoader,  // --profile
+)</code></pre>
+
+        <div class="flow" aria-label="Loader order">
+          <span class="box">defaults</span>
+          <span class="arrow">→</span>
+          <span class="box">host file</span>
+          <span class="arrow">→</span>
+          <span class="box">env</span>
+          <span class="arrow">→</span>
+          <span class="box">flags</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Review checks</h2>
+        <ul class="checklist">
+          <li><code>--profile</code> is registered before Cobra parses args.</li>
+          <li>Only profile-scoped commands overlay env/flags onto host profiles.</li>
+          <li>Source configs still load from each source repo after host paths resolve.</li>
+          <li>CSV, repeated flags, trimming, and dedupe come from config-loader slice semantics.</li>
+          <li><code>--profile=</code> is tested as an explicitly changed empty flag.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="callout">
+      <p><strong>Red flag:</strong> if <code>link</code>/<code>unlink</code> still only call <code>cmd.Flags().GetStringSlice("profile")</code>, host defaults and env fallback are probably not implemented correctly.</p>
+    </div>
+  </main>
+</body>
+</html>

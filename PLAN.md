@@ -172,33 +172,77 @@ source repo, and one explicitly selected profile.
 ## Milestone 3: Profile Selection and Discovery Slice
 
 **Outcome:** The working single-source flow supports realistic profile
-selection and file discovery rules.
+defaults, flag/env selection, source-declared profile availability, source
+ignore rules, and scriptable profile discovery output.
 
 **Scope:**
 
-- Support repeatable `--profile` flags.
-- Support optional CSV profile input.
-- Support `$CUBBY_PROFILE` as fallback.
-- Ensure flag values override environment values.
-- Error when profile-scoped commands receive no profile selection.
+- Migrate the host config schema from per-source host profiles to top-level host
+  profile defaults:
+
+  ```toml
+  profiles = ["work", "personal"]
+
+  [[source]]
+  name = "src"
+  path = "../src"
+  ```
+
+- Keep source `cubby.toml` profiles as the source of truth for what each source
+  provides.
+- Use `go-config-loader` for command profile selection with precedence:
+
+  ```text
+  defaults < host .cubby.toml profiles < CUBBY_PROFILE < --profile
+  ```
+
+- Support repeatable `--profile` flags and CSV profile input for both flags and
+  `$CUBBY_PROFILE`.
+- Ensure flag values override environment and host-default values completely.
+- Treat host `profiles` as defaults, not an allowlist; flags/env may select
+  profiles not listed in host defaults.
+- Error when flags/env/host defaults produce no effective profile selection.
+- Error before link/unlink side effects when any selected profile is declared by
+  no registered source.
+- Per source, apply only the intersection of the effective selection and that
+  source's declared profiles.
 - Recognize both valid profile filename forms:
   - `*.<profile>.*`
   - `*.<profile>`
 - Exclude the unsupported literal `.<profile>` filename form.
 - Ignore lookalike files for undeclared profiles.
-- Apply source `ignore` rules.
-- Implement `cubby profile list`.
-- Add end-to-end tests for flag selection, environment selection, multi-profile
-  selection, ignored files, and undeclared-profile lookalikes.
+- Apply source `ignore` rules using source-relative `/`-normalized paths,
+  basename matching for patterns without `/`, and doublestar-style `**` globs.
+- Error on invalid source ignore patterns.
+- Implement `cubby profile list` as sorted, one-profile-per-line output from
+  the union of source-declared profiles only.
+- Keep `gitignore check` and `gitignore sync` using the union of all
+  source-declared profiles for safety.
+- Add focused end-to-end tests for host-default selection, flag selection,
+  environment selection, flag-over-env precedence, multi-profile selection,
+  no-selection errors, unknown-profile errors before side effects, ignored
+  files, undeclared-profile lookalikes, and `profile list` output.
+- Add table-driven tests that deliberately distinguish host defaults, effective
+  command selection, and source-declared profiles so bugs that mix up these
+  profile sets are caught.
+- Add an explicit empty-flag test, preferably with `--profile=`, proving that a
+  changed empty flag produces an empty effective selection and does not fall
+  back to env or host defaults.
 
 **Verification:**
 
-- `link` and `unlink` accept profiles from flags and environment variables.
-- Flag-provided profiles win over `$CUBBY_PROFILE`.
+- Existing Milestone 1 and 2 behaviors still pass under the new host schema.
+- `link` and `unlink` accept profiles from host defaults, `$CUBBY_PROFILE`, and
+  `--profile` with the expected precedence.
+- Flag-provided profiles win over `$CUBBY_PROFILE` and host defaults.
 - Multi-profile invocation links and unlinks only selected profile files.
+- A selected profile unknown to all sources fails before filesystem changes.
 - Files for undeclared profiles are ignored.
 - Ignored source files are not linked.
-- `profile list` prints the union of declared profiles.
+- Invalid source ignore patterns fail clearly.
+- `profile list` prints the sorted union of source-declared profiles.
+- `gitignore check` and `gitignore sync` check/sync patterns for every
+  source-declared profile.
 
 ## Milestone 4: Conflict and Safety Slice
 
@@ -214,10 +258,13 @@ are detected, reported, and never resolved by deleting user files.
 - Honor per-source `ignore_conflicts`.
 - Add CLI conflict skipping through `--ignore-conflicts` or the final selected
   flag name.
+- Add `--dry-run` for `link` and `unlink` so users can preview planned creates,
+  removals, skips, and conflicts without mutating the filesystem.
 - Ensure conflict skipping links non-conflicting files and reports skipped
   files.
 - Add end-to-end tests for regular-file conflicts, unexpected-symlink
-  conflicts, skipped conflicts, and idempotent correct symlinks.
+  conflicts, skipped conflicts, idempotent correct symlinks, and dry-run
+  non-mutation behavior.
 
 **Verification:**
 
@@ -227,6 +274,8 @@ are detected, reported, and never resolved by deleting user files.
 - Correct symlinks remain idempotent no-ops.
 - Conflict-skipping mode exits successfully when only skippable conflicts are
   encountered and reports what was skipped.
+- Dry-run mode reports the same planned work/conflicts without creating or
+  removing links.
 
 ## Milestone 5: Multi-Source Inventory Slice
 
@@ -236,27 +285,30 @@ registered sources, and source inventory commands are useful.
 **Scope:**
 
 - Load multiple registered sources from `.cubby.toml`.
-- Enforce host `profiles` as strict opt-in per source.
+- Use top-level host `profiles` as default command selection across all
+  registered sources.
 - Implement `cubby source list`.
-- Expand `cubby profile list` across all registered sources.
+- Ensure `cubby profile list` remains correct across all registered sources.
 - Ensure `gitignore check` and `gitignore sync` use the union of profiles from
   all registered sources.
-- Ensure `link` and `unlink` apply selected profiles across all eligible
-  sources.
-- Report host-requested profiles that a source does not declare as diagnostics,
-  not link-time hard errors.
-- Add end-to-end tests for multi-source linking, source collisions, strict
-  profile opt-in, and gitignore union behavior.
+- Ensure `link` and `unlink` apply effective selected/default profiles across
+  all eligible sources.
+- Treat a selected profile that is missing from one source as a diagnostic, not
+  a hard error, as long as at least one registered source declares it.
+- Add end-to-end tests for multi-source linking, source collisions, top-level
+  host default selection, explicit profile selection, and gitignore union
+  behavior.
 
 **Verification:**
 
 - `source list` prints registered sources.
-- `profile list` prints the union of declared profiles.
-- Sources with omitted or empty host `profiles` do not link files.
+- `profile list` prints the union of declared source profiles.
+- Empty top-level host profiles require explicit flag/env profile selection.
 - Multi-source `link` creates the expected relative symlinks.
 - Multi-source `unlink` removes only matching managed links.
-- Missing source-declared profiles are visible in diagnostics without blocking
-  unrelated link work.
+- Profiles missing from a given source are visible in diagnostics without
+  blocking unrelated link work when another source provides the selected
+  profile.
 
 ## Milestone 6: Status, Doctor, and Prune Slice
 
@@ -329,6 +381,7 @@ and can be installed from source.
   - gitignore check/sync
   - link/unlink
   - conflicts
+  - dry-run link/unlink previews
   - multi-source repos
   - multi-profile invocations
   - env-var-only profile selection

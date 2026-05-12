@@ -79,19 +79,26 @@ Both configs are TOML, loaded via `github.com/jmcampanini/go-config-loader`
 ### 4.1 Host repo: `.cubby.toml` (dot-prefixed)
 
 ```toml
+profiles = ["work", "personal"] # optional command defaults for link/unlink
+
 [[source]]
 name             = "work"
 path             = "~/Code/work-dotfiles"
-profiles         = ["work"]      # required, opt-in; empty/omitted = nothing links
 ignore_conflicts = false         # optional, default false
 ```
 
 Notes:
 
-- `profiles` is **strict opt-in**. If omitted or empty, `cubby` will not link
-  anything from this source. There is no "all declared profiles" default.
-- A profile listed here that the source repo does not declare is a `doctor`
-  diagnostic, not a hard error at link time.
+- Top-level `profiles` are host defaults for profile-scoped commands. If no
+  `--profile` flag or `$CUBBY_PROFILE` env var is provided, `link` and `unlink`
+  use this list.
+- Host `profiles` are **not** an allowlist. Flags and env may select profiles
+  not listed in the host defaults, but every selected profile must be declared
+  by at least one registered source before any link/unlink side effects occur.
+- If flags, env, and host defaults produce no selected profiles, the command
+  errors. There is no implicit "all declared profiles" default.
+- `profiles` do not live under `[[source]]` in the host config. Source-specific
+  profile availability is declared by each source repo's `cubby.toml`.
 - `ignore_conflicts` is per-source. The CLI flag `--ignore-conflicts` (or
   similar) overrides to "skip the conflicting file, link the rest, log it" —
   never to destroy existing files.
@@ -108,7 +115,10 @@ ignore = [
 ```
 
 The source repo's config is the source of truth for what profiles it provides
-and which files within it are off-limits.
+and which files within it are off-limits. Ignore entries are matched against
+source-relative paths normalized to `/`; entries without `/` match basenames
+anywhere in the source tree, and glob entries use doublestar-style `**`
+recursive semantics.
 
 ---
 
@@ -118,11 +128,22 @@ and which files within it are off-limits.
 state file. The set of currently active profiles is implicit: it is whatever
 symlinks happen to exist in the host repo right now.
 
-Profile selection per command:
+Profile selection for profile-scoped commands uses this precedence:
 
-- `--profile <name>` flag (repeatable; CSV form may also be supported)
-- `$CUBBY_PROFILE` env var as fallback default
-- **Flag overrides env.** If neither is set, the command errors.
+```text
+defaults < host .cubby.toml profiles < CUBBY_PROFILE < --profile
+```
+
+- `--profile <name>` is repeatable; each value may also be comma-separated.
+- `$CUBBY_PROFILE` uses the same comma-separated parsing as `--profile`.
+- **Flag overrides env.** If any `--profile` flag is provided, env and host
+  defaults are ignored for that command.
+- If the effective selection is empty, the command errors. There is no implicit
+  "all profiles" behavior.
+- If any selected profile is declared by no registered source, the command
+  errors before creating or removing links.
+- Per source, link/unlink applies only the intersection of the effective
+  selection and that source's declared profiles.
 
 Source-scoped commands (`lazygit`, etc.):
 
@@ -135,7 +156,7 @@ Source-scoped commands (`lazygit`, etc.):
 
 ## 6. Conflict handling
 
-When `cubby link --profile work` walks each registered source repo and tries
+When `cubby link` applies a selected/default profile such as `work` and tries
 to create a symlink, four cases:
 
 | Case | Situation                                                                       | Default behavior                                  |
@@ -148,6 +169,10 @@ to create a symlink, four cases:
 `--ignore-conflicts` (CLI) and `ignore_conflicts = true` (per-source config)
 flip A/B/C from "error" to "skip and log." Existing files are never silently
 destroyed.
+
+`--dry-run` for `link` and `unlink` previews planned creates/removals, skips,
+and conflicts without mutating the filesystem. It belongs with the conflict and
+safety behavior rather than profile discovery.
 
 ---
 
@@ -170,8 +195,8 @@ profile-scoped files.
 
 | Command                                  | Purpose                                                                                  |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `cubby link --profile <p>`               | Create symlinks for the named profile(s) across registered sources                        |
-| `cubby unlink --profile <p>`             | Remove symlinks for the named profile(s)                                                  |
+| `cubby link [--profile <p>] [--dry-run]` | Create symlinks for selected/default profile(s) across registered sources                  |
+| `cubby unlink [--profile <p>] [--dry-run]` | Remove symlinks for selected/default profile(s)                                          |
 | `cubby prune`                            | Remove dangling symlinks (target file no longer exists)                                   |
 | `cubby status`                           | Report what is linked, from which source, for which profile, and any drift                |
 | `cubby doctor`                           | Aggregate health checks (gitignore, conflicts, dangling, missing sources, etc.)           |
@@ -224,16 +249,15 @@ End-to-end smoke test the implementation must pass:
 1. Create two throwaway git repos in `/tmp/` — `host/` and `src/`.
 2. Seed `src/nvim/init.work.lua` and `src/cubby.toml` declaring
    `profiles = ["work"]`.
-3. Write `host/.cubby.toml` registering the source repo with
-   `profiles = ["work"]`.
-4. Run `cubby link --profile work` from `host/`; assert a relative symlink
-   exists at `host/nvim/init.work.lua` whose target resolves to the file in
-   `src/`.
+3. Write `host/.cubby.toml` with top-level `profiles = ["work"]` and one
+   `[[source]]` registering the source repo.
+4. Run `cubby link` from `host/`; assert a relative symlink exists at
+   `host/nvim/init.work.lua` whose target resolves to the file in `src/`.
 5. Run `cubby gitignore check`; assert it flags missing `*.work.*` and
    `*.work` patterns.
 6. Run `cubby gitignore sync`; assert the patterns appear in
    `host/.gitignore`.
-7. Run `cubby unlink --profile work`; assert the symlink is gone.
+7. Run `cubby unlink`; assert the symlink is gone.
 
 Further acceptance scenarios (conflicts, multi-source, prune, doctor,
 multi-profile invocations, env-var-only invocations, etc.) to be enumerated in
@@ -244,7 +268,7 @@ the implementation plan's verification step.
 ## 13. Explicitly out of scope (for now)
 
 - Stored "active profiles" state on disk.
-- Default-source / default-profile inference.
+- Default-source inference and implicit all-profiles selection.
 - TUI / interactive mode.
 - `source add` / `source remove` / `init` commands.
 - Direct `git` or `exec` pass-through.

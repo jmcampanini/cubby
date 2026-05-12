@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Milestone 3 Plan Review Deck</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a33;
+      --panel-2: #172241;
+      --ink: #eef4ff;
+      --muted: #9fb0d0;
+      --line: #2a3a68;
+      --accent: #7dd3fc;
+      --accent-2: #c084fc;
+      --good: #86efac;
+      --warn: #fde68a;
+      --bad: #fca5a5;
+      --code: #07111f;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.18), transparent 28rem),
+        radial-gradient(circle at 85% 10%, rgba(192, 132, 252, 0.16), transparent 25rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      overflow: hidden;
+    }
+
+    a { color: var(--accent); }
+    code, pre { font-family: var(--mono); }
+    pre {
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      background: var(--code);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      color: #d7e7ff;
+      line-height: 1.45;
+      font-size: clamp(0.8rem, 1.2vw, 1rem);
+    }
+
+    .deck {
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: clamp(1.25rem, 3vw, 3.25rem);
+      display: none;
+      overflow: auto;
+    }
+
+    .slide.active {
+      display: grid;
+      align-content: center;
+      animation: in 160ms ease-out;
+    }
+
+    @keyframes in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .frame {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(18, 26, 51, 0.94), rgba(14, 21, 42, 0.94));
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: var(--radius);
+      box-shadow: 0 24px 80px var(--shadow);
+      padding: clamp(1.5rem, 3vw, 3rem);
+    }
+
+    .wide { width: min(1320px, 100%); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+    .split-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: stretch; }
+    .stack { display: grid; gap: 1rem; }
+    .center { text-align: center; }
+
+    h1, h2, h3 { margin: 0; line-height: 1.05; }
+    h1 { font-size: clamp(2.2rem, 6.4vw, 5.7rem); letter-spacing: -0.055em; }
+    h2 { font-size: clamp(1.9rem, 4.2vw, 3.8rem); letter-spacing: -0.045em; }
+    h3 { font-size: clamp(1.15rem, 2vw, 1.55rem); letter-spacing: -0.015em; }
+    p, li { color: var(--muted); font-size: clamp(1rem, 1.55vw, 1.25rem); line-height: 1.48; }
+    ul, ol { margin: 0; padding-left: 1.35rem; }
+    .lead { color: #dce9ff; font-size: clamp(1.12rem, 2vw, 1.55rem); }
+    .small { font-size: 0.95rem; color: var(--muted); }
+    .kicker { color: var(--accent); font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; }
+    .muted { color: var(--muted); }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .accent { color: var(--accent); }
+
+    .card {
+      background: rgba(23, 34, 65, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1rem;
+    }
+
+    .card h3 { margin-bottom: 0.55rem; }
+    .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, 0.12);
+      border: 1px solid rgba(125, 211, 252, 0.25);
+      color: #dff6ff;
+      font-weight: 650;
+      font-size: 0.95rem;
+    }
+
+    .diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    .box {
+      min-width: 150px;
+      padding: 0.8rem 0.95rem;
+      border-radius: 16px;
+      background: rgba(7, 17, 31, 0.85);
+      border: 1px solid var(--line);
+      text-align: center;
+      color: var(--ink);
+      font-weight: 750;
+    }
+
+    .box small { display: block; margin-top: 0.25rem; color: var(--muted); font-weight: 500; }
+    .arrow { color: var(--accent); font-size: 1.7rem; font-weight: 900; }
+    .down { transform: rotate(90deg); display: inline-block; }
+
+    .venn {
+      position: relative;
+      height: 310px;
+      margin: 1rem auto;
+      max-width: 600px;
+    }
+    .circle {
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 1.25rem;
+      font-weight: 800;
+      border: 2px solid rgba(255,255,255,0.22);
+      mix-blend-mode: screen;
+    }
+    .c1 { left: 40px; top: 20px; background: rgba(125, 211, 252, 0.34); }
+    .c2 { right: 40px; top: 20px; background: rgba(192, 132, 252, 0.32); }
+    .intersection {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -42%);
+      background: rgba(134, 239, 172, 0.17);
+      border: 1px solid rgba(134, 239, 172, 0.42);
+      border-radius: 18px;
+      padding: 0.8rem 1rem;
+      color: #eafff0;
+      font-weight: 850;
+      text-align: center;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.25);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      font-size: clamp(0.8rem, 1.3vw, 1rem);
+    }
+    th, td {
+      padding: 0.72rem 0.85rem;
+      border-bottom: 1px solid rgba(42, 58, 104, 0.85);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: #dff6ff; background: rgba(125, 211, 252, 0.12); }
+    td { color: var(--muted); background: rgba(7, 17, 31, 0.45); }
+    tr:last-child td { border-bottom: 0; }
+
+    .checklist li { margin: 0.45rem 0; }
+    .checklist li::marker { color: var(--accent); }
+
+    .callout {
+      border-left: 5px solid var(--accent);
+      padding: 0.8rem 1rem;
+      background: rgba(125, 211, 252, 0.08);
+      border-radius: 0 16px 16px 0;
+    }
+    .callout.warn { border-left-color: var(--warn); background: rgba(253, 230, 138, 0.08); }
+    .callout.bad { border-left-color: var(--bad); background: rgba(252, 165, 165, 0.08); }
+    .callout.good { border-left-color: var(--good); background: rgba(134, 239, 172, 0.08); }
+
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 1rem;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(7, 17, 31, 0.78);
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      backdrop-filter: blur(10px);
+      border-radius: 999px;
+      padding: 0.45rem 0.7rem;
+      z-index: 10;
+      box-shadow: 0 12px 36px var(--shadow);
+    }
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: rgba(23, 34, 65, 0.9);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.45rem 0.75rem;
+      cursor: pointer;
+      font-weight: 750;
+    }
+    button:hover { border-color: var(--accent); }
+    .status { min-width: 6.5rem; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .progress {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 5px;
+      background: rgba(255,255,255,0.07);
+      z-index: 11;
+    }
+    .progress > div {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 120ms ease;
+    }
+
+    .notes {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed rgba(159, 176, 208, 0.35);
+    }
+    .notes strong { color: #dff6ff; }
+
+    @media (max-width: 840px) {
+      body { overflow: auto; }
+      .slide { position: static; min-height: 100vh; display: none; }
+      .split, .split-3 { grid-template-columns: 1fr; }
+      .controls { bottom: 0.5rem; }
+      .venn { transform: scale(0.86); transform-origin: center; }
+    }
+
+    @media print {
+      body { overflow: visible; background: #fff; color: #111827; }
+      .deck { height: auto; width: auto; }
+      .slide { position: static; display: block !important; page-break-after: always; padding: 1rem; }
+      .frame { box-shadow: none; border: 1px solid #d1d5db; background: #fff; color: #111827; }
+      p, li, td { color: #374151; }
+      h1, h2, h3, th { color: #111827; }
+      .controls, .progress { display: none; }
+      pre { background: #f9fafb; color: #111827; border-color: #d1d5db; }
+      .card, td { background: #fff; }
+      .box { background: #f9fafb; color: #111827; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress"><div id="progressBar"></div></div>
+  <main class="deck" aria-live="polite">
+    <section class="slide active">
+      <div class="frame center">
+        <div class="kicker">Cubby Milestone 3</div>
+        <h1>Review Deck</h1>
+        <p class="lead">A guided walkthrough for verifying that the milestone plan can actually deliver its stated outcome.</p>
+        <div class="pill-row" style="justify-content:center; margin-top:1.4rem;">
+          <span class="pill">← / → navigate</span>
+          <span class="pill">Space advances</span>
+          <span class="pill">Print-friendly</span>
+        </div>
+        <div class="notes">
+          <p><strong>Your job:</strong> do not ask “does this sound good?” Ask “what evidence would prove this works?”</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">The stated outcome</div>
+        <h2>What must be true after M3?</h2>
+        <div class="split" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3>Behavioral outcome</h3>
+            <p>The existing single-source link/unlink flow becomes realistic enough for daily use:</p>
+            <ul class="checklist">
+              <li>profiles can come from host defaults, env, or flags</li>
+              <li>source repos declare what they provide</li>
+              <li>ignore rules prevent unwanted source files from linking</li>
+              <li>profile discovery is scriptable via <code>profile list</code></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Review question</h3>
+            <p class="lead">Can a human run commands and know whether the outcome happened?</p>
+            <div class="callout good">
+              <p>If the plan maps each promise to tests, diagnostics, and observable filesystem state, it is reviewable.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Mental model</div>
+        <h2>Three different “profile” concepts</h2>
+        <div class="split-3" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3>1. Host defaults</h3>
+            <pre><code># host/.cubby.toml
+profiles = ["work", "personal"]</code></pre>
+            <p>What the host applies when the command provides no explicit selection.</p>
+          </div>
+          <div class="card">
+            <h3>2. Invocation selection</h3>
+            <pre><code>CUBBY_PROFILE=work cubby link
+cubby link --profile personal</code></pre>
+            <p>Per-run override of host defaults.</p>
+          </div>
+          <div class="card">
+            <h3>3. Source availability</h3>
+            <pre><code># source/cubby.toml
+profiles = ["work", "client-acme"]</code></pre>
+            <p>What a source repo actually provides.</p>
+          </div>
+        </div>
+        <div class="notes">
+          <p><strong>Gotcha:</strong> many bugs come from mixing these up. Host defaults choose; source profiles authorize availability.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Selection pipeline</div>
+        <h2>How profiles should flow</h2>
+        <div class="diagram">
+          <div class="box">defaults<small>empty</small></div>
+          <div class="arrow">→</div>
+          <div class="box">host file<small>.cubby.toml</small></div>
+          <div class="arrow">→</div>
+          <div class="box">env<small>CUBBY_PROFILE</small></div>
+          <div class="arrow">→</div>
+          <div class="box">flags<small>--profile</small></div>
+          <div class="arrow">→</div>
+          <div class="box">effective selection<small>validate before link</small></div>
+        </div>
+        <div class="callout">
+          <p><strong>Review focus:</strong> the plan explicitly chooses <code>go-config-loader</code> to encode this precedence instead of hand-rolling it.</p>
+        </div>
+        <pre style="margin-top:1rem;"><code>loader order: required host file → environment loader → pflag loader
+precedence:   defaults &lt; host file &lt; CUBBY_PROFILE &lt; --profile</code></pre>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Truth table</div>
+        <h2>Can you predict the selected profiles?</h2>
+        <table style="margin-top:1.2rem;">
+          <thead>
+            <tr><th>Host profiles</th><th>Env</th><th>Flag</th><th>Effective selection</th><th>Should happen</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>[work, personal]</code></td><td>unset</td><td>none</td><td><code>[work, personal]</code></td><td>Use host defaults.</td></tr>
+            <tr><td><code>[work]</code></td><td><code>personal</code></td><td>none</td><td><code>[personal]</code></td><td>Env overrides host defaults.</td></tr>
+            <tr><td><code>[work]</code></td><td><code>work</code></td><td><code>--profile personal</code></td><td><code>[personal]</code></td><td>Flag overrides env completely.</td></tr>
+            <tr><td><code>[work]</code></td><td><code>work</code></td><td><code>--profile ""</code></td><td><code>[]</code></td><td>Error; do not fall back to env.</td></tr>
+            <tr><td><code>[]</code> or missing</td><td>unset</td><td>none</td><td><code>[]</code></td><td>Error; no implicit all-profiles mode.</td></tr>
+          </tbody>
+        </table>
+        <div class="notes">
+          <p><strong>Evidence to demand:</strong> focused tests for every row, including the empty flag case if possible.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Schema migration</div>
+        <h2>Host config changes shape</h2>
+        <div class="split" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3 class="bad">Old M2 shape</h3>
+            <pre><code>[[source]]
+name = "src"
+path = "../src"
+profiles = ["work"]</code></pre>
+          </div>
+          <div class="card">
+            <h3 class="good">M3 target shape</h3>
+            <pre><code>profiles = ["work"]
+
+[[source]]
+name = "src"
+path = "../src"</code></pre>
+          </div>
+        </div>
+        <div class="callout warn" style="margin-top:1rem;">
+          <p><strong>Gotcha:</strong> strict TOML loading means old fixtures with <code>profiles</code> under <code>[[source]]</code> should fail as unknown keys once <code>HostSource.Profiles</code> is removed. That is okay, but all tests must migrate.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Config-loader integration</div>
+        <h2>What implementation should smell like</h2>
+        <div class="split" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3>Expected code shape</h3>
+            <pre><code>type HostConfig struct {
+    Profiles []string `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+    Sources  []HostSource `toml:"source"`
+}
+
+envLoader, _  := configloader.NewEnvironmentLoader[HostConfig]("cubby", configloader.OSEnv())
+flagLoader, _ := pflagloader.NewLoader[HostConfig](cmd.Flags())
+
+host, _, err := configloader.Load(defaults, fileLoader, envLoader, flagLoader)</code></pre>
+          </div>
+          <div class="card">
+            <h3>Review checks</h3>
+            <ul class="checklist">
+              <li><code>--profile</code> is registered before Cobra parses args.</li>
+              <li>Only profile-scoped commands use env/flag overlays.</li>
+              <li>Source configs still load from source repos after host paths resolve.</li>
+              <li>CSV/repeated flag behavior comes from config-loader, not duplicate custom parsing.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout bad" style="margin-top:1rem;">
+          <p><strong>Red flag:</strong> if link/unlink still call a helper that only reads <code>cmd.Flags().GetStringSlice("profile")</code>, host defaults and env fallback are probably not implemented correctly.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Validation barrier</div>
+        <h2>No filesystem changes until selection is valid</h2>
+        <div class="diagram">
+          <div class="box">load project</div>
+          <div class="arrow">→</div>
+          <div class="box">compute source union<small>all declared profiles</small></div>
+          <div class="arrow">→</div>
+          <div class="box">validate selected<small>none? unknown?</small></div>
+          <div class="arrow">→</div>
+          <div class="box">discover + link/unlink</div>
+        </div>
+        <div class="split" style="margin-top:1rem;">
+          <div class="card">
+            <h3>Example</h3>
+            <pre><code># sources declare: work, personal
+cubby link --profile work --profile ghost</code></pre>
+            <p>Should error because <code>ghost</code> is unknown, even though <code>work</code> is valid.</p>
+          </div>
+          <div class="card">
+            <h3>What to verify</h3>
+            <ul class="checklist">
+              <li>The command exits non-zero.</li>
+              <li>No <code>work</code> symlink was created first.</li>
+              <li>The error names the unknown profile.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Per-source filtering</div>
+        <h2>Effective selection ∩ source availability</h2>
+        <div class="venn" aria-hidden="true">
+          <div class="circle c1">Selected by host/env/flag</div>
+          <div class="circle c2">Declared by this source</div>
+          <div class="intersection">Files to discover<br/>for this source</div>
+        </div>
+        <div class="callout">
+          <p>If selected profiles are <code>[work, personal]</code> and a source declares only <code>[work]</code>, that source links only <code>work</code>. This is not an error because another source may provide <code>personal</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Filename grammar</div>
+        <h2>Discovery should stay exact</h2>
+        <table style="margin-top:1.2rem;">
+          <thead><tr><th>File</th><th>Profile</th><th>Expected</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><code>nvim/init.work.lua</code></td><td><code>work</code></td><td class="good">match</td><td><code>*.&lt;profile&gt;.*</code></td></tr>
+            <tr><td><code>archive.work.tar.gz</code></td><td><code>work</code></td><td class="good">match</td><td>multi-dot suffix preserved</td></tr>
+            <tr><td><code>Makefile.work</code></td><td><code>work</code></td><td class="good">match</td><td><code>*.&lt;profile&gt;</code></td></tr>
+            <tr><td><code>.zshrc.work</code></td><td><code>work</code></td><td class="good">match</td><td>dotfile with profile suffix</td></tr>
+            <tr><td><code>.work</code></td><td><code>work</code></td><td class="bad">no match</td><td>literal hidden profile filename unsupported</td></tr>
+            <tr><td><code>script.workbench.sh</code></td><td><code>work</code></td><td class="bad">no match</td><td>lookalike substring</td></tr>
+            <tr><td><code>thing.homework</code></td><td><code>work</code></td><td class="bad">no match</td><td>lookalike suffix</td></tr>
+          </tbody>
+        </table>
+        <div class="notes">
+          <p><strong>Review focus:</strong> M3 should not regress the grammar established in M2 while adding host defaults and ignores.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Ignore rules</div>
+        <h2>What “ignore” means in source discovery</h2>
+        <div class="split" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3>Source config</h3>
+            <pre><code>profiles = ["work"]
+ignore = [
+  "nvim/skip.work.lua",
+  "*.draft.*",
+  "**/*.secret.*",
+]</code></pre>
+          </div>
+          <div class="card">
+            <h3>Rules to check</h3>
+            <ul class="checklist">
+              <li>Match against source-relative paths.</li>
+              <li>Normalize separators to <code>/</code>.</li>
+              <li>No slash means basename anywhere.</li>
+              <li><code>**</code> means recursive directories.</li>
+              <li>Invalid glob patterns are hard errors.</li>
+            </ul>
+          </div>
+        </div>
+        <table style="margin-top:1rem;">
+          <thead><tr><th>Pattern</th><th>Should ignore</th><th>Should not ignore</th></tr></thead>
+          <tbody>
+            <tr><td><code>nvim/skip.work.lua</code></td><td><code>nvim/skip.work.lua</code></td><td><code>other/skip.work.lua</code></td></tr>
+            <tr><td><code>*.draft.*</code></td><td><code>foo.draft.work.md</code>, <code>nested/foo.draft.work.md</code></td><td><code>foo.work.md</code></td></tr>
+            <tr><td><code>init.work.lua</code></td><td><code>init.work.lua</code>, <code>nvim/init.work.lua</code></td><td><code>nvim/init.personal.lua</code></td></tr>
+            <tr><td><code>**/*.secret.*</code></td><td><code>a/b/foo.secret.work</code></td><td><code>foo.work</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Ignore implementation gotcha</div>
+        <h2><code>**</code> is not automatic everywhere</h2>
+        <div class="callout warn">
+          <p>Go's standard <code>path.Match</code> / <code>filepath.Match</code> do not provide full gitignore-style recursive <code>**</code> semantics by themselves.</p>
+        </div>
+        <div class="split" style="margin-top:1rem;">
+          <div class="card">
+            <h3>What to look for</h3>
+            <ul class="checklist">
+              <li>A small matcher with explicit tests for <code>**/*.draft.*</code>.</li>
+              <li>Clear invalid-pattern detection.</li>
+              <li>No accidental OS-specific separator behavior.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Failure mode</h3>
+            <p>If <code>**</code> is treated like plain <code>*</code>, ignored nested files may still link. That violates the milestone outcome even if simple ignores pass.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Profile list</div>
+        <h2>Available means source-declared</h2>
+        <div class="split" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3>Setup</h3>
+            <pre><code># host/.cubby.toml
+profiles = ["work", "ghost"]
+
+[[source]]
+path = "../src"
+
+# source/cubby.toml
+profiles = ["work", "personal"]</code></pre>
+          </div>
+          <div class="card">
+            <h3>Expected output</h3>
+            <pre><code>personal
+work</code></pre>
+            <p><code>ghost</code> is a host default with no provider, so it is not an available profile.</p>
+          </div>
+        </div>
+        <div class="callout" style="margin-top:1rem;">
+          <p><strong>Review focus:</strong> one profile per line, sorted, no header, no table. This keeps output scriptable.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Gitignore safety</div>
+        <h2>Use the safety universe, not the active selection</h2>
+        <div class="diagram">
+          <div class="box">all sources</div>
+          <div class="arrow">→</div>
+          <div class="box">union of source profiles<small>work, personal, client</small></div>
+          <div class="arrow">→</div>
+          <div class="box">required patterns<small>*.profile.* + *.profile</small></div>
+          <div class="arrow">→</div>
+          <div class="box">.gitignore check/sync</div>
+        </div>
+        <div class="callout good">
+          <p>The plan deliberately keeps gitignore broader than current selection. This is safer because public host repos should not accidentally commit any profile-scoped file that a registered source can provide.</p>
+        </div>
+        <div class="callout bad" style="margin-top:1rem;">
+          <p><strong>Red flag:</strong> if gitignore code starts reading effective command profiles, it may miss patterns for source-declared profiles that are not active today.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">E2E coverage</div>
+        <h2>Does the test plan prove the behavior?</h2>
+        <table style="margin-top:1.2rem;">
+          <thead><tr><th>Behavior</th><th>Planned evidence</th><th>What to inspect</th></tr></thead>
+          <tbody>
+            <tr><td>Host defaults</td><td><code>cubby link</code> with no env/flag creates default-profile links</td><td>Assert symlink exists and resolves to source.</td></tr>
+            <tr><td>Default unlink</td><td><code>cubby unlink</code> with no env/flag removes those links</td><td>Assert managed symlinks gone, user files untouched.</td></tr>
+            <tr><td>Env fallback</td><td><code>CUBBY_PROFILE=personal cubby link</code></td><td>Assert only personal files link.</td></tr>
+            <tr><td>Flag overrides env</td><td><code>CUBBY_PROFILE=work cubby link --profile personal</code></td><td>Assert work files do not link.</td></tr>
+            <tr><td>Multi-profile</td><td>Repeated + CSV flags</td><td>Assert selected set only; dedupe/order in helper tests.</td></tr>
+            <tr><td>Errors</td><td>No selection and unknown selection tests</td><td>Assert non-zero and no side effects.</td></tr>
+            <tr><td>Ignores</td><td>Exact path + recursive glob e2e</td><td>Assert ignored matching files are not linked.</td></tr>
+            <tr><td>Profile list</td><td>Sorted/deduped one-line output</td><td>Assert exact stdout.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Traceability matrix</div>
+        <h2>Outcome → phase → proof</h2>
+        <table style="margin-top:1.2rem;">
+          <thead><tr><th>Outcome claim</th><th>Plan phase</th><th>Proof to require</th><th>Main gotcha</th></tr></thead>
+          <tbody>
+            <tr><td>Host/env/flag selection works</td><td>Phase 2</td><td>Command tests + e2e truth table</td><td>Bypassing config-loader or wrong loader order.</td></tr>
+            <tr><td>No implicit all-profiles</td><td>Phase 3</td><td>No-selection error test</td><td>Empty host profiles accidentally treated as all.</td></tr>
+            <tr><td>Unknown profiles error before changes</td><td>Phase 3</td><td>Unknown-profile e2e checks filesystem unchanged</td><td>Linking valid profiles before detecting typo.</td></tr>
+            <tr><td>Ignored source files do not link</td><td>Phase 4</td><td>Unit matcher tests + e2e ignored file test</td><td><code>**</code> behavior or basename-vs-path confusion.</td></tr>
+            <tr><td><code>profile list</code> is scriptable</td><td>Phase 5</td><td>Exact stdout test</td><td>Including host-only defaults or adding headers.</td></tr>
+            <tr><td>Gitignore remains safe</td><td>Phase 6</td><td>Tests with source-declared but inactive profile</td><td>Using active selection instead of source union.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Review risks</div>
+        <h2>Potential weak spots in the plan</h2>
+        <div class="stack" style="margin-top:1.25rem;">
+          <div class="callout warn"><p><strong>Unlink env/flag coverage:</strong> the plan only requires one e2e for unlink default selection. That is probably fine if link/unlink share a tested selection helper, but verify they actually share it.</p></div>
+          <div class="callout warn"><p><strong>Empty flag value:</strong> the decision says <code>--profile ""</code> should error and not fall back. Make sure a test captures this edge case, even if it is unit-level.</p></div>
+          <div class="callout warn"><p><strong>Strict old schema:</strong> old host configs are intentionally outside M3. If backwards compatibility matters, the plan does not cover it.</p></div>
+          <div class="callout warn"><p><strong>Multi-source collisions:</strong> not part of M3. Avoid adding collision promises here; that is Milestone 4/5 territory.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame wide">
+        <div class="kicker">Implementation red flags</div>
+        <h2>Stop and re-check if you see these</h2>
+        <div class="split-3" style="margin-top:1.25rem;">
+          <div class="card">
+            <h3 class="bad">Selection</h3>
+            <ul>
+              <li>Flag parsing duplicated in multiple commands.</li>
+              <li>Env read directly with <code>os.Getenv</code> while config-loader is also present.</li>
+              <li>Unknown profile checked after linking begins.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 class="bad">Discovery</h3>
+            <ul>
+              <li>Ignores checked against absolute paths.</li>
+              <li>Backslash path separators leak into matching.</li>
+              <li><code>.work</code> starts matching as a valid profile file.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 class="bad">Output</h3>
+            <ul>
+              <li><code>profile list</code> prints tables by default.</li>
+              <li>Gitignore uses host defaults instead of all source profiles.</li>
+              <li>Tests assert only exit codes, not filesystem state.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame">
+        <div class="kicker">Reviewer worksheet</div>
+        <h2>Before approving M3, answer these</h2>
+        <ol class="checklist" style="margin-top:1.25rem;">
+          <li>Can I explain the difference between host defaults and source availability?</li>
+          <li>Can I predict effective profiles for host/env/flag combinations?</li>
+          <li>Is there a test proving unknown selected profiles create no links?</li>
+          <li>Is ignore matching tested for exact path, basename, glob, recursive glob, and invalid glob?</li>
+          <li>Does <code>profile list</code> print only source-declared available profiles?</li>
+          <li>Does gitignore still cover every source-declared profile, even inactive ones?</li>
+          <li>Do existing M1/M2 tests still pass after the host schema change?</li>
+        </ol>
+        <div class="callout good" style="margin-top:1rem;">
+          <p>If the answer to all seven is yes, the plan has a high chance of accomplishing its stated outcome and being objectively verifiable.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="frame center">
+        <div class="kicker">Go / no-go rubric</div>
+        <h2>What “good enough” looks like</h2>
+        <div class="split" style="margin-top:1.25rem; text-align:left;">
+          <div class="card">
+            <h3 class="good">Go</h3>
+            <ul class="checklist">
+              <li>Every decision has a corresponding test.</li>
+              <li>Errors happen before side effects.</li>
+              <li>Output remains scriptable.</li>
+              <li>Safety checks stay conservative.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 class="bad">No-go</h3>
+            <ul class="checklist">
+              <li>Selection precedence is ambiguous or duplicated.</li>
+              <li>Unknown profiles silently no-op.</li>
+              <li>Ignore semantics are underspecified in implementation.</li>
+              <li>Gitignore narrows to active profiles.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="lead" style="margin-top:1.4rem;">The plan is strong if implementation can be reviewed as a chain: <br/><span class="accent">config → selected profiles → validated profiles → discovered files → filesystem/output assertions</span>.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="controls" aria-label="Slide controls">
+    <button id="prev" type="button" aria-label="Previous slide">←</button>
+    <span class="status" id="status">1 / 1</span>
+    <button id="next" type="button" aria-label="Next slide">→</button>
+  </nav>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const status = document.getElementById('status');
+      const progress = document.getElementById('progressBar');
+      const prev = document.getElementById('prev');
+      const next = document.getElementById('next');
+      let index = 0;
+
+      function clamp(n) {
+        return Math.max(0, Math.min(slides.length - 1, n));
+      }
+
+      function show(n, updateHash = true) {
+        index = clamp(n);
+        slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+        status.textContent = `${index + 1} / ${slides.length}`;
+        progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+        prev.disabled = index === 0;
+        next.disabled = index === slides.length - 1;
+        if (updateHash) history.replaceState(null, '', `#${index + 1}`);
+      }
+
+      function fromHash() {
+        const raw = window.location.hash.replace('#', '');
+        const n = Number.parseInt(raw, 10);
+        if (Number.isFinite(n)) show(n - 1, false);
+        else show(0, false);
+      }
+
+      prev.addEventListener('click', () => show(index - 1));
+      next.addEventListener('click', () => show(index + 1));
+      window.addEventListener('hashchange', fromHash);
+      window.addEventListener('keydown', (event) => {
+        const tag = event.target && event.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+          event.preventDefault();
+          show(index + 1);
+        }
+        if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+          event.preventDefault();
+          show(index - 1);
+        }
+        if (event.key === 'Home') show(0);
+        if (event.key === 'End') show(slides.length - 1);
+      });
+
+      fromHash();
+    })();
+  </script>
+</body>
+</html>
