@@ -26,13 +26,29 @@ type Project struct {
 
 // LoadProject loads the host config from the current directory plus all registered sources.
 func LoadProject() (*Project, error) {
+	hostRoot, err := CurrentHostRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	hostFile := filepath.Join(hostRoot, HostConfigFileName)
+	hostCfg, err := LoadHostConfigFile(hostFile)
+	if err != nil {
+		return nil, fmt.Errorf("load host config %q: %w", hostFile, err)
+	}
+
+	return LoadProjectWithHostConfig(hostRoot, hostCfg)
+}
+
+// CurrentHostRoot returns the current directory as an absolute host root after verifying it contains the host config.
+func CurrentHostRoot() (string, error) {
 	hostRoot, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("get current directory: %w", err)
+		return "", fmt.Errorf("get current directory: %w", err)
 	}
 	hostRoot, err = filepath.Abs(hostRoot)
 	if err != nil {
-		return nil, fmt.Errorf("resolve current directory %q: %w", hostRoot, err)
+		return "", fmt.Errorf("resolve current directory %q: %w", hostRoot, err)
 	}
 	hostRoot = filepath.Clean(hostRoot)
 
@@ -40,18 +56,34 @@ func LoadProject() (*Project, error) {
 	info, err := os.Stat(hostFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%s not found in current directory; run cubby from the host repo root", HostConfigFileName)
+			return "", fmt.Errorf("%s not found in current directory; run cubby from the host repo root", HostConfigFileName)
 		}
-		return nil, fmt.Errorf("stat host config %q: %w", hostFile, err)
+		return "", fmt.Errorf("stat host config %q: %w", hostFile, err)
 	}
 	if info.IsDir() {
-		return nil, fmt.Errorf("host config %q is a directory", hostFile)
+		return "", fmt.Errorf("host config %q is a directory", hostFile)
 	}
+	return hostRoot, nil
+}
 
-	hostCfg, err := loadRequiredFile(hostFile, DefaultHostConfig)
+// LoadHostConfigFile loads and normalizes one required host config file.
+func LoadHostConfigFile(path string) (HostConfig, error) {
+	hostCfg, err := loadRequiredFile(path, DefaultHostConfig)
 	if err != nil {
-		return nil, fmt.Errorf("load host config %q: %w", hostFile, err)
+		return HostConfig{}, err
 	}
+	return NormalizeHostConfig(hostCfg), nil
+}
+
+// LoadProjectWithHostConfig loads registered sources using an already-effective host config.
+func LoadProjectWithHostConfig(hostRoot string, hostCfg HostConfig) (*Project, error) {
+	hostRoot, err := filepath.Abs(hostRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve host root %q: %w", hostRoot, err)
+	}
+	hostRoot = filepath.Clean(hostRoot)
+	hostCfg = NormalizeHostConfig(hostCfg)
+	hostFile := filepath.Join(hostRoot, HostConfigFileName)
 	if len(hostCfg.Sources) == 0 {
 		return nil, fmt.Errorf("host config %q has no [[source]] entries", hostFile)
 	}
@@ -80,11 +112,7 @@ func LoadProject() (*Project, error) {
 func (p *Project) DeclaredProfiles() []string {
 	seen := make(map[string]struct{})
 	for _, source := range p.Sources {
-		for _, profile := range source.Config.Profiles {
-			profile = strings.TrimSpace(profile)
-			if profile == "" {
-				continue
-			}
+		for _, profile := range NormalizeProfiles(source.Config.Profiles) {
 			seen[profile] = struct{}{}
 		}
 	}
@@ -126,7 +154,8 @@ func loadRegisteredSource(hostRoot string, index int, source HostSource) (Regist
 	if err != nil {
 		return RegisteredSource{}, fmt.Errorf("load source config for source %q at %q: %w", name, sourceFile, err)
 	}
-	if len(nonEmptyStrings(sourceCfg.Profiles)) == 0 {
+	sourceCfg = NormalizeSourceConfig(sourceCfg)
+	if len(sourceCfg.Profiles) == 0 {
 		return RegisteredSource{}, fmt.Errorf("source %q declares no profiles", name)
 	}
 
@@ -177,15 +206,4 @@ func loadRequiredFile[T any](path string, defaults T) (T, error) {
 		return defaults, err
 	}
 	return cfg, nil
-}
-
-func nonEmptyStrings(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value != "" {
-			out = append(out, value)
-		}
-	}
-	return out
 }

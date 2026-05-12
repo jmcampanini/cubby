@@ -7,7 +7,6 @@ import (
 
 	"github.com/jmcampanini/cubby/internal/config"
 	"github.com/jmcampanini/cubby/internal/linkops"
-	"github.com/jmcampanini/cubby/internal/profilefiles"
 	"github.com/spf13/cobra"
 )
 
@@ -18,12 +17,7 @@ func linkCommand() *cobra.Command {
 	}
 	addProfileFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		profiles, err := selectedProfiles(cmd)
-		if err != nil {
-			return err
-		}
-
-		project, err := config.LoadProject()
+		project, profiles, err := loadProfileScopedProject(cmd)
 		if err != nil {
 			return err
 		}
@@ -33,14 +27,19 @@ func linkCommand() *cobra.Command {
 }
 
 func linkProfiles(project *config.Project, profiles []string) error {
-	for _, source := range project.Sources {
-		files, err := profilefiles.Discover(source.ResolvedPath, source.Config.Profiles, sourceSelectedProfiles(source, profiles))
-		if err != nil {
-			return fmt.Errorf("discover profile files for source %q: %w", source.Name, err)
-		}
-		for _, file := range files {
-			if err := linkProfileFile(project.HostRoot, source.ResolvedPath, file.RelPath); err != nil {
-				return fmt.Errorf("link %s from source %q: %w", file.RelPath, source.Name, err)
+	profiles = config.NormalizeProfiles(profiles)
+	if err := validateSelectedProfiles(project, profiles); err != nil {
+		return err
+	}
+
+	discovered, err := discoverProfileFiles(project, profiles)
+	if err != nil {
+		return err
+	}
+	for _, item := range discovered {
+		for _, file := range item.files {
+			if err := linkProfileFile(project.HostRoot, item.source.ResolvedPath, file.RelPath); err != nil {
+				return fmt.Errorf("link %s from source %q: %w", file.RelPath, item.source.Name, err)
 			}
 		}
 	}

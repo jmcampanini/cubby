@@ -1,11 +1,13 @@
 package profilefiles
 
 import (
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/jmcampanini/cubby/internal/config"
 )
 
@@ -16,7 +18,12 @@ type File struct {
 }
 
 // Discover walks root and returns regular files matching selected declared profiles.
-func Discover(root string, declaredProfiles, selectedProfiles []string) ([]File, error) {
+func Discover(root string, declaredProfiles, selectedProfiles, ignore []string) ([]File, error) {
+	ignoreRules, err := compileIgnoreRules(ignore)
+	if err != nil {
+		return nil, err
+	}
+
 	profiles := selectedDeclaredProfiles(declaredProfiles, selectedProfiles)
 	if len(profiles) == 0 {
 		return nil, nil
@@ -42,6 +49,15 @@ func Discover(root string, declaredProfiles, selectedProfiles []string) ([]File,
 			return err
 		}
 		if rel == config.SourceConfigFileName {
+			return nil
+		}
+
+		relSlash := filepath.ToSlash(rel)
+		ignored, err := ignoredByAny(ignoreRules, relSlash, d.Name())
+		if err != nil {
+			return err
+		}
+		if ignored {
 			return nil
 		}
 
@@ -97,16 +113,55 @@ func MatchBasename(base, profile string) bool {
 	return false
 }
 
+type ignoreRule struct {
+	pattern      string
+	basenameOnly bool
+}
+
+func compileIgnoreRules(ignore []string) ([]ignoreRule, error) {
+	rules := make([]ignoreRule, 0, len(ignore))
+	for _, raw := range ignore {
+		pattern := filepath.ToSlash(strings.TrimSpace(raw))
+		if pattern == "" {
+			continue
+		}
+		if !doublestar.ValidatePattern(pattern) {
+			return nil, fmt.Errorf("invalid ignore pattern %q", raw)
+		}
+		rules = append(rules, ignoreRule{
+			pattern:      pattern,
+			basenameOnly: !strings.Contains(pattern, "/"),
+		})
+	}
+	return rules, nil
+}
+
+func ignoredByAny(rules []ignoreRule, relSlash, base string) (bool, error) {
+	for _, rule := range rules {
+		name := relSlash
+		if rule.basenameOnly {
+			name = base
+		}
+		matched, err := doublestar.Match(rule.pattern, name)
+		if err != nil {
+			return false, fmt.Errorf("invalid ignore pattern %q: %w", rule.pattern, err)
+		}
+		if matched {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func selectedDeclaredProfiles(declaredProfiles, selectedProfiles []string) []string {
 	declared := stringSet(declaredProfiles)
-	candidates := stringSet(selectedProfiles)
-	if len(candidates) == 0 {
+	if len(declared) == 0 {
 		return nil
 	}
 
-	profiles := make([]string, 0, len(candidates))
-	seen := make(map[string]struct{}, len(candidates))
-	for profile := range candidates {
+	profiles := make([]string, 0, len(selectedProfiles))
+	seen := make(map[string]struct{}, len(selectedProfiles))
+	for _, profile := range config.NormalizeProfiles(selectedProfiles) {
 		if _, ok := declared[profile]; !ok {
 			continue
 		}
@@ -116,17 +171,12 @@ func selectedDeclaredProfiles(declaredProfiles, selectedProfiles []string) []str
 		seen[profile] = struct{}{}
 		profiles = append(profiles, profile)
 	}
-	sort.Strings(profiles)
 	return profiles
 }
 
 func stringSet(values []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
+	for _, value := range config.NormalizeProfiles(values) {
 		set[value] = struct{}{}
 	}
 	return set

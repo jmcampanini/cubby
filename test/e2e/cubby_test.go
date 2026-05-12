@@ -30,7 +30,7 @@ func TestLinkUnlinkSingleSourceSmoke(t *testing.T) {
 	mustMkdir(t, host)
 	mustMkdir(t, src)
 	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
-	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\nprofiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\n")
 	mustWrite(t, sourceFile, "-- work\n")
 
 	link := runCubby(t, bin, host, "link", "--profile", "work")
@@ -110,7 +110,7 @@ func TestGitignoreCheckSyncEndToEndFromHostRoot(t *testing.T) {
 	mustMkdir(t, nested)
 	mustMkdir(t, src)
 	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
-	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\nprofiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+src+"\"\n")
 
 	checkBefore := runCubby(t, bin, host, "gitignore", "check")
 	if checkBefore.code == 0 {
@@ -188,6 +188,220 @@ func TestGitignoreSyncAppendsToExistingGitignoreReadably(t *testing.T) {
 	want := "existing\n*.work.*\n*.work\n"
 	if got := mustRead(t, filepath.Join(host, ".gitignore")); got != want {
 		t.Fatalf(".gitignore = %q, want %q", got, want)
+	}
+}
+
+func TestLinkUsesHostDefaultProfiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.personal.lua"), "-- personal\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertNotExist(t, filepath.Join(host, "nvim", "init.personal.lua"))
+}
+
+func TestUnlinkUsesHostDefaultProfiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	hostFile := filepath.Join(host, "nvim", "init.work.lua")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	link := runCubby(t, bin, host, "link")
+	if link.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", link.code, link.stdout, link.stderr)
+	}
+	assertSymlinkExists(t, hostFile)
+	unlink := runCubby(t, bin, host, "unlink")
+	if unlink.code != 0 {
+		t.Fatalf("unlink code = %d, stdout = %s, stderr = %s", unlink.code, unlink.stdout, unlink.stderr)
+	}
+	assertNotExist(t, hostFile)
+}
+
+func TestLinkUsesEnvFallbackWhenNoFlagIsPresent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.personal.lua"), "-- personal\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubbyEnv(t, bin, host, map[string]string{"CUBBY_PROFILE": "personal"}, "link")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertNotExist(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.personal.lua"))
+}
+
+func TestLinkFlagOverridesEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.personal.lua"), "-- personal\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubbyEnv(t, bin, host, map[string]string{"CUBBY_PROFILE": "work"}, "link", "--profile", "personal")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertNotExist(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.personal.lua"))
+}
+
+func TestLinkMultiProfileSelection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\", \"personal\", \"client\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.personal.lua"), "-- personal\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.client.lua"), "-- client\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link", "--profile", "work, personal", "--profile", "work")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.personal.lua"))
+	assertNotExist(t, filepath.Join(host, "nvim", "init.client.lua"))
+
+	unlink := runCubby(t, bin, host, "unlink", "--profile", "work,personal")
+	if unlink.code != 0 {
+		t.Fatalf("unlink code = %d, stdout = %s, stderr = %s", unlink.code, unlink.stdout, unlink.stderr)
+	}
+	assertNotExist(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertNotExist(t, filepath.Join(host, "nvim", "init.personal.lua"))
+}
+
+func TestLinkNoSelectionErrors(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	assertFailureContains(t, result, "no profiles selected")
+	assertNotExist(t, filepath.Join(host, "nvim", "init.work.lua"))
+}
+
+func TestLinkUnknownProfileErrorsBeforeCreatingLinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	workHostFile := filepath.Join(host, "nvim", "init.work.lua")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link", "--profile", "ghost,work")
+	assertFailureContains(t, result, "ghost")
+	assertNotExist(t, workHostFile)
+}
+
+func TestLinkHonorsSourceIgnoreRules(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\nignore = [\"nvim/init.work.lua\", \"**/*.draft.*\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- ignored exact\n")
+	mustWrite(t, filepath.Join(src, "nvim", "draft.work.draft.lua"), "-- ignored glob\n")
+	mustWrite(t, filepath.Join(src, "nvim", "keep.work.lua"), "-- keep\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertNotExist(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertNotExist(t, filepath.Join(host, "nvim", "draft.work.draft.lua"))
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "keep.work.lua"))
+}
+
+func TestLinkIgnoresUndeclaredLookalikes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "-- work\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.client.lua"), "-- client lookalike\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "nvim", "init.work.lua"))
+	assertNotExist(t, filepath.Join(host, "nvim", "init.client.lua"))
+}
+
+func TestProfileListEndToEnd(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"client\", \"work\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"host-only\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "profile", "list")
+	if result.code != 0 {
+		t.Fatalf("profile list code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	want := "client\npersonal\nwork\n"
+	if result.stdout != want {
+		t.Fatalf("profile list stdout = %q, want %q", result.stdout, want)
 	}
 }
 
@@ -273,8 +487,14 @@ func repoRoot(t *testing.T) string {
 
 func runCubby(t *testing.T, bin, dir string, args ...string) runResult {
 	t.Helper()
+	return runCubbyEnv(t, bin, dir, nil, args...)
+}
+
+func runCubbyEnv(t *testing.T, bin, dir string, env map[string]string, args ...string) runResult {
+	t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
+	cmd.Env = cubbyTestEnv(env)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -293,6 +513,20 @@ func runCubby(t *testing.T, bin, dir string, args ...string) runResult {
 	return result
 }
 
+func cubbyTestEnv(overrides map[string]string) []string {
+	env := make([]string, 0, len(os.Environ())+len(overrides))
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "CUBBY_PROFILE=") {
+			continue
+		}
+		env = append(env, entry)
+	}
+	for key, value := range overrides {
+		env = append(env, key+"="+value)
+	}
+	return env
+}
+
 func assertFailureContains(t *testing.T, result runResult, want string) {
 	t.Helper()
 	if result.code == 0 {
@@ -306,6 +540,24 @@ func assertContains(t *testing.T, got, want string) {
 	t.Helper()
 	if !strings.Contains(got, want) {
 		t.Fatalf("output %q does not contain %q", got, want)
+	}
+}
+
+func assertSymlinkExists(t *testing.T, path string) {
+	t.Helper()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error = %v", path, err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("%q mode = %v, want symlink", path, info.Mode())
+	}
+}
+
+func assertNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("Lstat(%q) error = %v, want not exist", path, err)
 	}
 }
 

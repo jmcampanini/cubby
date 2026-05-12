@@ -16,9 +16,9 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 	mustMkdir(t, src1)
 	mustMkdir(t, src2)
 
-	mustWrite(t, filepath.Join(src1, SourceConfigFileName), "profiles = [\"work\", \"client\"]\n")
+	mustWrite(t, filepath.Join(src1, SourceConfigFileName), "profiles = [\" work \", \"client\", \"work\"]\n")
 	mustWrite(t, filepath.Join(src2, SourceConfigFileName), "profiles = [\"work\", \"home\"]\n")
-	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"one\"\npath = \"../src1\"\nprofiles = [\"work\"]\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\nignore_conflicts = true\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "profiles = [\" work \", \"personal\", \"work\", \"\"]\n\n[[source]]\nname = \"one\"\npath = \"../src1\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\nignore_conflicts = true\n")
 
 	mustChdir(t, host)
 
@@ -31,6 +31,7 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 		t.Fatalf("HostRoot = %q, want %q", project.HostRoot, wantHost)
 	}
 
+	assertStringSlicesEqual(t, project.Host.Profiles, []string{"work", "personal"})
 	got := project.DeclaredProfiles()
 	want := []string{"client", "home", "work"}
 	assertStringSlicesEqual(t, got, want)
@@ -43,6 +44,25 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 	}
 	if !project.Sources[1].IgnoreConflicts {
 		t.Fatalf("second source IgnoreConflicts = false, want parsed true")
+	}
+}
+
+func TestLoadProjectRejectsOldPerSourceHostProfiles(t *testing.T) {
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustMkdir(t, host)
+	mustMkdir(t, src)
+	mustWrite(t, filepath.Join(src, SourceConfigFileName), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"work\"\npath = \"../src\"\nprofiles = [\"work\"]\n")
+	mustChdir(t, host)
+
+	_, err := LoadProject()
+	if err == nil {
+		t.Fatalf("LoadProject() error = nil, want unknown per-source profiles error")
+	}
+	if !strings.Contains(err.Error(), "unknown keys") || !strings.Contains(err.Error(), "profiles") {
+		t.Fatalf("LoadProject() error = %q, want strict unknown profiles error", err)
 	}
 }
 
