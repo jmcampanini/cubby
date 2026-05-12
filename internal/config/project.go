@@ -130,6 +130,7 @@ func loadRegisteredSource(hostRoot string, index int, source HostSource) (Regist
 	if strings.TrimSpace(name) == "" {
 		name = fmt.Sprintf("#%d", index+1)
 	}
+	source.Name = name
 	if strings.TrimSpace(source.Path) == "" {
 		return RegisteredSource{}, fmt.Errorf("source %q is missing path", name)
 	}

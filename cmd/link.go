@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -16,17 +17,26 @@ func linkCommand() *cobra.Command {
 		Short: "Create symlinks for selected profiles",
 	}
 	addProfileFlag(cmd)
+	cmd.Flags().Bool("dry-run", false, "preview planned link actions without modifying files")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		project, profiles, err := loadProfileScopedProject(cmd)
 		if err != nil {
 			return err
 		}
-		return linkProfiles(project, profiles)
+		dryRun, err := cmd.Flags().GetBool("dry-run")
+		if err != nil {
+			return err
+		}
+		return linkProfilesWithOptions(cmd, project, profiles, linkRunOptions{DryRun: dryRun})
 	}
 	return cmd
 }
 
-func linkProfiles(project *config.Project, profiles []string) error {
+type linkRunOptions struct {
+	DryRun bool
+}
+
+func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profiles []string, opts linkRunOptions) error {
 	profiles = config.NormalizeProfiles(profiles)
 	if err := validateSelectedProfiles(project, profiles); err != nil {
 		return err
@@ -36,14 +46,58 @@ func linkProfiles(project *config.Project, profiles []string) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range discovered {
-		for _, file := range item.files {
-			if err := linkProfileFile(project.HostRoot, item.source.ResolvedPath, file.RelPath); err != nil {
-				return fmt.Errorf("link %s from source %q: %w", file.RelPath, item.source.Name, err)
-			}
+	plan, err := linkops.PlanLink(project.HostRoot, linkSources(discovered), linkops.PlanOptions{IgnoreConflicts: project.Host.IgnoreConflicts})
+	if err != nil {
+		return err
+	}
+
+	out := commandOut(cmd)
+	if opts.DryRun {
+		if err := linkops.RenderActions(out, plan.Actions); err != nil {
+			return err
 		}
+		if plan.HasFatalConflicts() {
+			return &ExitError{Code: 1}
+		}
+		return nil
+	}
+
+	if plan.HasFatalConflicts() {
+		if err := linkops.RenderActions(out, plan.FatalConflicts()); err != nil {
+			return err
+		}
+		return &ExitError{Code: 1}
+	}
+	if err := linkops.ApplyLink(plan); err != nil {
+		return err
+	}
+	if err := linkops.RenderActions(out, plan.Skips()); err != nil {
+		return err
 	}
 	return nil
+}
+
+func linkSources(discovered []discoveredProfileFiles) []linkops.SourceFiles {
+	sources := make([]linkops.SourceFiles, 0, len(discovered))
+	for _, item := range discovered {
+		relPaths := make([]string, 0, len(item.files))
+		for _, file := range item.files {
+			relPaths = append(relPaths, file.RelPath)
+		}
+		sources = append(sources, linkops.SourceFiles{
+			Name:     item.source.Name,
+			Root:     item.source.ResolvedPath,
+			RelPaths: relPaths,
+		})
+	}
+	return sources
+}
+
+func commandOut(cmd *cobra.Command) io.Writer {
+	if cmd == nil {
+		return os.Stdout
+	}
+	return cmd.OutOrStdout()
 }
 
 func linkProfileFile(hostRoot, sourceRoot, relPath string) error {

@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/jmcampanini/cubby/internal/config"
 	"github.com/jmcampanini/cubby/internal/linkops"
 	"github.com/spf13/cobra"
@@ -16,17 +12,26 @@ func unlinkCommand() *cobra.Command {
 		Short: "Remove symlinks for selected profiles",
 	}
 	addProfileFlag(cmd)
+	cmd.Flags().Bool("dry-run", false, "preview planned unlink actions without modifying files")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		project, profiles, err := loadProfileScopedProject(cmd)
 		if err != nil {
 			return err
 		}
-		return unlinkProfiles(project, profiles)
+		dryRun, err := cmd.Flags().GetBool("dry-run")
+		if err != nil {
+			return err
+		}
+		return unlinkProfilesWithOptions(cmd, project, profiles, unlinkRunOptions{DryRun: dryRun})
 	}
 	return cmd
 }
 
-func unlinkProfiles(project *config.Project, profiles []string) error {
+type unlinkRunOptions struct {
+	DryRun bool
+}
+
+func unlinkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profiles []string, opts unlinkRunOptions) error {
 	profiles = config.NormalizeProfiles(profiles)
 	if err := validateSelectedProfiles(project, profiles); err != nil {
 		return err
@@ -36,37 +41,12 @@ func unlinkProfiles(project *config.Project, profiles []string) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range discovered {
-		for _, file := range item.files {
-			if err := unlinkProfileFile(project.HostRoot, item.source.ResolvedPath, file.RelPath); err != nil {
-				return fmt.Errorf("unlink %s from source %q: %w", file.RelPath, item.source.Name, err)
-			}
-		}
-	}
-	return nil
-}
-
-func unlinkProfileFile(hostRoot, sourceRoot, relPath string) error {
-	sourcePath := filepath.Join(sourceRoot, relPath)
-	hostPath := filepath.Join(hostRoot, relPath)
-
-	info, err := os.Lstat(hostPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		return nil
-	}
-
-	ok, err := linkops.PointsTo(hostPath, sourcePath)
+	plan, err := linkops.PlanUnlink(project.HostRoot, linkSources(discovered))
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return nil
+	if opts.DryRun {
+		return linkops.RenderActions(commandOut(cmd), plan.Actions)
 	}
-	return os.Remove(hostPath)
+	return linkops.ApplyUnlink(plan)
 }
