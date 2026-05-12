@@ -2,32 +2,88 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/jmcampanini/cubby/internal/config"
+	configloader "github.com/jmcampanini/go-config-loader"
+	"github.com/jmcampanini/go-config-loader/pflagloader"
 	"github.com/spf13/cobra"
 )
 
 func addProfileFlag(cmd *cobra.Command) {
-	cmd.Flags().StringSlice("profile", nil, "profile name (repeatable or comma-separated)")
+	if err := pflagloader.Register[config.HostConfig](cmd.Flags()); err != nil {
+		panic(err)
+	}
 }
 
-func selectedProfiles(cmd *cobra.Command) ([]string, error) {
-	values, err := cmd.Flags().GetStringSlice("profile")
+func loadProfileScopedProject(cmd *cobra.Command) (*config.Project, []string, error) {
+	hostRoot, err := config.CurrentHostRoot()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	profiles := normalizeProfiles(values)
-	if len(profiles) == 0 {
-		return nil, fmt.Errorf("--profile is required")
+	hostFile := filepath.Join(hostRoot, config.HostConfigFileName)
+	fileLoader, err := configloader.NewRequiredFileLoader[config.HostConfig](hostFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create host config loader for %q: %w", hostFile, err)
 	}
-	return profiles, nil
+	envLoader, err := configloader.NewEnvironmentLoader[config.HostConfig]("cubby", configloader.OSEnv())
+	if err != nil {
+		return nil, nil, err
+	}
+	flagLoader, err := pflagloader.NewLoader[config.HostConfig](cmd.Flags())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	hostCfg, _, err := configloader.Load(config.DefaultHostConfig, fileLoader, envLoader, flagLoader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load host config %q: %w", hostFile, err)
+	}
+	hostCfg = config.NormalizeHostConfig(hostCfg)
+
+	project, err := config.LoadProjectWithHostConfig(hostRoot, hostCfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	profiles := config.NormalizeProfiles(project.Host.Profiles)
+	if err := validateSelectedProfiles(project, profiles); err != nil {
+		return nil, nil, err
+	}
+	return project, profiles, nil
+}
+
+func validateSelectedProfiles(project *config.Project, profiles []string) error {
+	profiles = config.NormalizeProfiles(profiles)
+	if len(profiles) == 0 {
+		return fmt.Errorf("no profiles selected; set top-level profiles in %s, CUBBY_PROFILE, or --profile", config.HostConfigFileName)
+	}
+
+	declared := make(map[string]struct{})
+	for _, profile := range project.DeclaredProfiles() {
+		declared[profile] = struct{}{}
+	}
+
+	unknown := make([]string, 0)
+	for _, profile := range profiles {
+		if _, ok := declared[profile]; !ok {
+			unknown = append(unknown, profile)
+		}
+	}
+	if len(unknown) > 0 {
+		if len(unknown) == 1 {
+			return fmt.Errorf("selected profile %q is not declared by any registered source", unknown[0])
+		}
+		return fmt.Errorf("selected profiles %s are not declared by any registered source", quotedList(unknown))
+	}
+	return nil
 }
 
 func sourceSelectedProfiles(source config.RegisteredSource, selected []string) []string {
 	allowed := make(map[string]struct{})
-	for _, profile := range normalizeProfiles(source.Profiles) {
+	for _, profile := range config.NormalizeProfiles(source.Config.Profiles) {
 		allowed[profile] = struct{}{}
 	}
 	if len(allowed) == 0 {
@@ -35,7 +91,7 @@ func sourceSelectedProfiles(source config.RegisteredSource, selected []string) [
 	}
 
 	profiles := make([]string, 0, len(selected))
-	for _, profile := range normalizeProfiles(selected) {
+	for _, profile := range config.NormalizeProfiles(selected) {
 		if _, ok := allowed[profile]; ok {
 			profiles = append(profiles, profile)
 		}
@@ -43,19 +99,10 @@ func sourceSelectedProfiles(source config.RegisteredSource, selected []string) [
 	return profiles
 }
 
-func normalizeProfiles(values []string) []string {
-	profiles := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		profile := strings.TrimSpace(value)
-		if profile == "" {
-			continue
-		}
-		if _, ok := seen[profile]; ok {
-			continue
-		}
-		seen[profile] = struct{}{}
-		profiles = append(profiles, profile)
+func quotedList(values []string) string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = fmt.Sprintf("%q", value)
 	}
-	return profiles
+	return strings.Join(quoted, ", ")
 }
