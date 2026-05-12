@@ -80,11 +80,11 @@ Both configs are TOML, loaded via `github.com/jmcampanini/go-config-loader`
 
 ```toml
 profiles = ["work", "personal"] # optional command defaults for link/unlink
+ignore_conflicts = false         # optional global conflict-skip default
 
 [[source]]
-name             = "work"
-path             = "~/Code/work-dotfiles"
-ignore_conflicts = false         # optional, default false
+name = "work"
+path = "~/Code/work-dotfiles"
 ```
 
 Notes:
@@ -99,9 +99,9 @@ Notes:
   errors. There is no implicit "all declared profiles" default.
 - `profiles` do not live under `[[source]]` in the host config. Source-specific
   profile availability is declared by each source repo's `cubby.toml`.
-- `ignore_conflicts` is per-source. The CLI flag `--ignore-conflicts` (or
-  similar) overrides to "skip the conflicting file, link the rest, log it" —
-  never to destroy existing files.
+- Top-level `ignore_conflicts` is a host-wide default for conflict skipping.
+  The CLI flag `--ignore-conflicts` overrides to "skip the conflicting file,
+  link the rest, log it" — never to destroy existing files.
 
 ### 4.2 Source repo: `cubby.toml` (no dot prefix)
 
@@ -166,9 +166,9 @@ to create a symlink, four cases:
 | C    | Two registered sources collide on the same projected path                        | First-registered wins; second triggers Case A     |
 | D    | Host repo already has the correct symlink                                        | No-op, no error                                   |
 
-`--ignore-conflicts` (CLI) and `ignore_conflicts = true` (per-source config)
-flip A/B/C from "error" to "skip and log." Existing files are never silently
-destroyed.
+`--ignore-conflicts` (CLI) and top-level `ignore_conflicts = true` in the host
+config flip A/B/C from "error" to "skip and log." Existing files are never
+silently destroyed.
 
 `--dry-run` for `link` and `unlink` previews planned creates/removals, skips,
 and conflicts without mutating the filesystem. It belongs with the conflict and
@@ -195,7 +195,7 @@ profile-scoped files.
 
 | Command                                  | Purpose                                                                                  |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `cubby link [--profile <p>] [--dry-run]` | Create symlinks for selected/default profile(s) across registered sources                  |
+| `cubby link [--profile <p>] [--ignore-conflicts] [--dry-run]` | Create symlinks for selected/default profile(s) across registered sources |
 | `cubby unlink [--profile <p>] [--dry-run]` | Remove symlinks for selected/default profile(s)                                          |
 | `cubby prune`                            | Remove dangling symlinks (target file no longer exists)                                   |
 | `cubby status`                           | Report what is linked, from which source, for which profile, and any drift                |
