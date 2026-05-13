@@ -47,6 +47,8 @@ handling can report every conflict and avoid partial changes.
   across all loaded sources before mutation.
 - Correct symlink detection compares resolved absolute clean target paths, not
   exact symlink text.
+- Cubby links regular source files only. Source directories and source symlinks,
+  including symlinks to directories, are not projected as link targets.
 - Test shape: end-to-end tests first, then focused unit tests for planner/action
   classification.
 

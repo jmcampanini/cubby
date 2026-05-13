@@ -18,7 +18,7 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 
 	mustWrite(t, filepath.Join(src1, SourceConfigFileName), "profiles = [\" work \", \"client\", \"work\"]\n")
 	mustWrite(t, filepath.Join(src2, SourceConfigFileName), "profiles = [\"work\", \"home\"]\n")
-	mustWrite(t, filepath.Join(host, HostConfigFileName), "profiles = [\" work \", \"personal\", \"work\", \"\"]\nignore_conflicts = true\n\n[[source]]\nname = \"one\"\npath = \"../src1\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "profiles = [\" work \", \"personal\", \"work\", \"\"]\nignore_conflicts = true\ncase_sensitive = true\n\n[[source]]\nname = \"one\"\npath = \"../src1\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
 
 	mustChdir(t, host)
 
@@ -42,6 +42,9 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 	if !project.Host.IgnoreConflicts {
 		t.Fatalf("host IgnoreConflicts = false, want parsed true")
 	}
+	if !project.Host.CaseSensitive {
+		t.Fatalf("host CaseSensitive = false, want parsed true")
+	}
 }
 
 func TestLoadProjectRejectsPerSourceIgnoreConflicts(t *testing.T) {
@@ -60,6 +63,25 @@ func TestLoadProjectRejectsPerSourceIgnoreConflicts(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown keys") || !strings.Contains(err.Error(), "ignore_conflicts") {
 		t.Fatalf("LoadProject() error = %q, want strict unknown ignore_conflicts error", err)
+	}
+}
+
+func TestLoadProjectRejectsPerSourceCaseSensitive(t *testing.T) {
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustMkdir(t, host)
+	mustMkdir(t, src)
+	mustWrite(t, filepath.Join(src, SourceConfigFileName), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"work\"\npath = \"../src\"\ncase_sensitive = true\n")
+	mustChdir(t, host)
+
+	_, err := LoadProject()
+	if err == nil {
+		t.Fatalf("LoadProject() error = nil, want unknown per-source case_sensitive error")
+	}
+	if !strings.Contains(err.Error(), "unknown keys") || !strings.Contains(err.Error(), "case_sensitive") {
+		t.Fatalf("LoadProject() error = %q, want strict unknown case_sensitive error", err)
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 // ActionKind is the kind of filesystem operation or classification in a plan.
@@ -78,6 +80,7 @@ type SourceFiles struct {
 // PlanOptions controls conflict classification.
 type PlanOptions struct {
 	IgnoreConflicts bool
+	CaseSensitive   bool
 }
 
 // PlanLink classifies all selected source files for link without mutating the filesystem.
@@ -85,16 +88,14 @@ func PlanLink(hostRoot string, sources []SourceFiles, opts PlanOptions) (Plan, e
 	planner := linkPlanner{
 		hostRoot:        filepath.Clean(hostRoot),
 		ignoreConflicts: opts.IgnoreConflicts,
+		caseSensitive:   opts.CaseSensitive,
 		seen:            make(map[string]Action),
 	}
-	for _, source := range sources {
-		for _, relPath := range source.RelPaths {
-			action, err := planner.planLinkAction(source, relPath)
-			if err != nil {
-				return Plan{}, err
-			}
-			planner.actions = append(planner.actions, action)
-		}
+	if err := planner.collectBaseActions(sources); err != nil {
+		return Plan{}, err
+	}
+	if err := planner.classifyHostActions(); err != nil {
+		return Plan{}, err
 	}
 	return Plan{Actions: planner.actions}, nil
 }
@@ -102,19 +103,64 @@ func PlanLink(hostRoot string, sources []SourceFiles, opts PlanOptions) (Plan, e
 type linkPlanner struct {
 	hostRoot        string
 	ignoreConflicts bool
+	caseSensitive   bool
 	seen            map[string]Action
 	actions         []Action
+	survivors       []Action
+	survivorIndices []int
 }
 
-func (p *linkPlanner) planLinkAction(source SourceFiles, relPath string) (Action, error) {
-	action := baseAction(p.hostRoot, source, relPath)
-	key := filepath.Clean(relPath)
-	if winner, ok := p.seen[key]; ok {
-		action.Reason = fmt.Sprintf("host path collision with source %q", winner.SourceName)
-		return p.conflictOrSkip(action), nil
+func (p *linkPlanner) collectBaseActions(sources []SourceFiles) error {
+	for _, source := range sources {
+		for _, relPath := range source.RelPaths {
+			action := baseAction(p.hostRoot, source, relPath)
+			key := collisionKey(relPath, p.caseSensitive)
+			if winner, ok := p.seen[key]; ok {
+				if action.RelPath == winner.RelPath {
+					action.Reason = fmt.Sprintf("host path collision with source %q", winner.SourceName)
+				} else {
+					action.Reason = fmt.Sprintf("path case collision with %s", filepath.ToSlash(winner.RelPath))
+				}
+				p.actions = append(p.actions, p.conflictOrSkip(action))
+				continue
+			}
+			p.seen[key] = action
+			p.survivorIndices = append(p.survivorIndices, len(p.actions))
+			p.actions = append(p.actions, action)
+			p.survivors = append(p.survivors, action)
+		}
 	}
-	p.seen[key] = action
+	return nil
+}
 
+func (p *linkPlanner) classifyHostActions() error {
+	var hostIndex *HostCaseIndex
+	if !p.caseSensitive {
+		index, err := BuildHostCaseIndex(p.hostRoot, relPaths(p.survivors))
+		if err != nil {
+			return err
+		}
+		hostIndex = index
+	}
+
+	for i, action := range p.survivors {
+		if hostIndex != nil {
+			if existingRelPath, ok := hostIndex.CaseVariantPrefix(action.RelPath); ok {
+				action.Reason = fmt.Sprintf("host path case conflict with %s", filepath.ToSlash(existingRelPath))
+				p.actions[p.survivorIndices[i]] = p.conflictOrSkip(action)
+				continue
+			}
+		}
+		classified, err := p.classifyExactHostPath(action)
+		if err != nil {
+			return err
+		}
+		p.actions[p.survivorIndices[i]] = classified
+	}
+	return nil
+}
+
+func (p *linkPlanner) classifyExactHostPath(action Action) (Action, error) {
 	info, err := os.Lstat(action.HostPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -223,6 +269,158 @@ func baseAction(hostRoot string, source SourceFiles, relPath string) Action {
 		HostPath:   filepath.Join(hostRoot, relPath),
 		RelPath:    relPath,
 	}
+}
+
+func collisionKey(relPath string, caseSensitive bool) string {
+	key := filepath.Clean(relPath)
+	if caseSensitive {
+		return key
+	}
+	return caseFoldPath(key)
+}
+
+func caseFoldPath(path string) string {
+	return strings.ToLower(path)
+}
+
+type HostCaseIndex struct {
+	Entries map[string][]HostEntry
+}
+
+type HostEntry struct {
+	RelPath string
+	IsDir   bool
+}
+
+type actualPrefix struct {
+	AbsDir    string
+	RelPrefix string
+}
+
+// BuildHostCaseIndex builds a bounded index of actual host spellings for planned paths.
+func BuildHostCaseIndex(hostRoot string, plannedRelPaths []string) (*HostCaseIndex, error) {
+	absHostRoot, err := filepath.Abs(hostRoot)
+	if err != nil {
+		return nil, err
+	}
+	absHostRoot = filepath.Clean(absHostRoot)
+	idx := &HostCaseIndex{Entries: make(map[string][]HostEntry)}
+	readCache := make(map[string][]os.DirEntry)
+
+	for _, relPath := range plannedRelPaths {
+		components := splitRelativePath(relPath)
+		if len(components) == 0 {
+			continue
+		}
+		active := []actualPrefix{{AbsDir: absHostRoot}}
+		for _, wantName := range components {
+			wantFold := caseFoldPath(wantName)
+			var next []actualPrefix
+			for _, parent := range active {
+				entries, err := readSortedDirCached(readCache, parent.AbsDir)
+				if err != nil {
+					if os.IsNotExist(err) || os.IsPermission(err) {
+						continue
+					}
+					return nil, err
+				}
+				for _, entry := range entries {
+					name := entry.Name()
+					if caseFoldPath(name) != wantFold {
+						continue
+					}
+					actualRel := joinRel(parent.RelPrefix, name)
+					idx.add(actualRel, entry.IsDir())
+					if entry.IsDir() {
+						next = append(next, actualPrefix{
+							AbsDir:    filepath.Join(parent.AbsDir, name),
+							RelPrefix: actualRel,
+						})
+					}
+				}
+			}
+			if len(next) == 0 {
+				break
+			}
+			active = next
+		}
+	}
+	return idx, nil
+}
+
+func readSortedDirCached(cache map[string][]os.DirEntry, dir string) ([]os.DirEntry, error) {
+	if entries, ok := cache[dir]; ok {
+		return entries, nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+	cache[dir] = entries
+	return entries, nil
+}
+
+func (idx *HostCaseIndex) add(relPath string, isDir bool) {
+	relPath = filepath.Clean(relPath)
+	key := caseFoldPath(relPath)
+	for _, existing := range idx.Entries[key] {
+		if existing.RelPath == relPath {
+			return
+		}
+	}
+	idx.Entries[key] = append(idx.Entries[key], HostEntry{RelPath: relPath, IsDir: isDir})
+}
+
+func (idx *HostCaseIndex) CaseVariantPrefix(plannedRelPath string) (string, bool) {
+	if idx == nil {
+		return "", false
+	}
+	for _, prefix := range prefixesOf(plannedRelPath) {
+		key := caseFoldPath(prefix)
+		for _, existing := range idx.Entries[key] {
+			if existing.RelPath != prefix {
+				return existing.RelPath, true
+			}
+		}
+	}
+	return "", false
+}
+
+func relPaths(actions []Action) []string {
+	paths := make([]string, 0, len(actions))
+	for _, action := range actions {
+		paths = append(paths, action.RelPath)
+	}
+	return paths
+}
+
+func prefixesOf(path string) []string {
+	components := splitRelativePath(path)
+	prefixes := make([]string, 0, len(components))
+	current := ""
+	for _, component := range components {
+		current = joinRel(current, component)
+		prefixes = append(prefixes, current)
+	}
+	return prefixes
+}
+
+func joinRel(prefix, name string) string {
+	if prefix == "" || prefix == "." {
+		return filepath.Clean(name)
+	}
+	return filepath.Join(prefix, name)
+}
+
+func splitRelativePath(path string) []string {
+	path = filepath.Clean(path)
+	if path == "" || path == "." {
+		return nil
+	}
+	return strings.Split(path, string(filepath.Separator))
 }
 
 // ApplyLink applies create actions in plan. It refuses to apply a plan with fatal conflicts.

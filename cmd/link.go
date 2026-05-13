@@ -46,7 +46,10 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 	if err != nil {
 		return err
 	}
-	plan, err := linkops.PlanLink(project.HostRoot, linkSources(discovered), linkops.PlanOptions{IgnoreConflicts: project.Host.IgnoreConflicts})
+	plan, err := linkops.PlanLink(project.HostRoot, linkSources(discovered), linkops.PlanOptions{
+		IgnoreConflicts: project.Host.IgnoreConflicts,
+		CaseSensitive:   project.Host.CaseSensitive,
+	})
 	if err != nil {
 		return err
 	}

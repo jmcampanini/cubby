@@ -17,6 +17,19 @@ This plan is split into two implementation phases:
 Implement both phases, but do them one at a time. Phase 1 is the first required
 fix. Phase 2 extends the same policy to existing host filesystem state.
 
+Scope notes:
+
+- This plan applies to selected regular source profile files only. Cubby does
+  not project source directories or source symlinks, including symlinks to
+  directories.
+- Host symlinks are considered only as existing projected file-path state:
+  exact correct symlinks can be `NOOP`, and unexpected symlinks are conflicts or
+  skips. Cubby does not traverse or manage directory symlinks as link targets.
+- This milestone does not attempt full Unicode filesystem normalization or full
+  Unicode case-folding semantics. The initial policy uses stable cleaned paths
+  plus simple lowercase folding; this is sufficient for the ASCII-oriented
+  dotfile names covered here and can be extended later if needed.
+
 ## Configuration Contract
 
 Case behavior is host-wide and top-level in host `.cubby.toml`.
@@ -78,6 +91,15 @@ SKIP FOO.work path case collision with foo.work [source=src]
 Tests should assert stable prefixes and important substrings, not necessarily
 full prose.
 
+Terminology:
+
+- **Source-source case collision:** two selected source files, from the same or
+  different registered sources, project to the same host path after case
+  folding. Both path strings are already known from source discovery.
+- **Source-host case conflict:** one selected source file projects to a path that
+  collides by case with an already-existing host path. Cubby must collect the
+  host path's actual spelling before comparing strings.
+
 ## Filesystem Assumptions and Testability
 
 This feature does not require tests to run on a case-sensitive filesystem.
@@ -113,9 +135,9 @@ is not required for this milestone.
 When `case_sensitive = false`:
 
 - Collision keys should normalize each relative path in a stable way.
-- Use `filepath.Clean` plus case folding for the planning key.
-- Prefer Unicode-safe case folding if practical; otherwise document simple
-  lowercase normalization as the initial implementation.
+- Use `filepath.Clean` plus simple lowercase folding for the planning key.
+- Full Unicode case folding and filesystem Unicode normalization are explicitly
+  out of scope for this milestone.
 - Preserve the original relative path in rendered output.
 - The first planned item wins.
 - Later colliding items become either:
@@ -275,21 +297,43 @@ but Cubby's default host-wide policy should treat it as ambiguous and unsafe.
 
 ### Link Planning Semantics
 
+Use **Strategy B: a bounded host case index**. The planner should make existing
+host case checks by first collecting the actual spellings of relevant host path
+components, then comparing strings from the plan against that index.
+
 For each non-colliding planned source item from Phase 1:
 
-1. Inspect the exact projected host path as today:
-   - missing -> possible `CREATE`;
-   - correct symlink -> `NOOP`;
-   - regular file/directory/unexpected symlink -> conflict or skip.
-2. If exact path is missing and `case_sensitive = false`, inspect the parent
-   directory for entries whose names case-fold to the planned basename.
-3. If a different-cased existing entry is found:
+1. Build the set of planned host-relative paths that still need host
+   classification.
+2. If `case_sensitive = false`, build a bounded host case index for those paths:
+   - read only host directories that are relevant to planned path prefixes;
+   - store actual host-relative spellings keyed by cleaned, lowercase-folded
+     relative paths;
+   - include parent directory prefixes, not only leaf files;
+   - sort entries before storing/reporting so output is deterministic.
+3. Before exact-path classification, check whether any planned path prefix has
+   an indexed host entry with the same folded key but different actual spelling:
+   - host `foo.work`, planned `FOO.work` -> conflict with `foo.work`;
+   - host `Nvim/`, planned `nvim/init.work.lua` -> conflict with `Nvim` even if
+     `init.work.lua` does not exist under `Nvim`;
+   - host `nvim/Init.work.lua`, planned `nvim/init.work.lua` -> conflict with
+     `nvim/Init.work.lua`.
+4. If a different-cased existing host entry is found:
    - record fatal `CONFLICT` by default;
    - record `SKIP` when conflict skipping is enabled;
    - do not create the planned symlink.
-4. If multiple parent entries match case-insensitively, report the first stable
-   sorted match in the reason.
-5. Missing parent directories have no existing-host case conflict.
+5. If no host case conflict is found, inspect the exact projected host path as
+   today:
+   - missing -> possible `CREATE`;
+   - correct symlink -> `NOOP`;
+   - regular file/directory/unexpected symlink -> conflict or skip.
+6. Missing parent directories have no existing-host case conflict below that
+   missing parent.
+
+Important ordering rule: host case policy must run before treating an exact path
+as a correct `NOOP`. On case-insensitive filesystems, `Lstat("FOO.work")` may
+succeed when the actual directory entry is `foo.work`; Cubby still needs to
+report a host path case conflict under the default policy.
 
 Recommended reason wording:
 
@@ -359,6 +403,12 @@ Add focused unit tests in `internal/linkops`:
     `CONFLICT`;
   - existing unexpected symlink `foo.work`, planned `FOO.work` -> fatal
     `CONFLICT`;
+  - existing parent directory `Nvim`, planned `nvim/init.work.lua` -> fatal
+    `CONFLICT` even when the leaf does not exist;
+  - existing `nvim/Init.work.lua`, planned `nvim/init.work.lua` -> fatal
+    `CONFLICT`;
+  - correct symlink with different host spelling is a host case conflict before
+    it can be classified as `NOOP`;
 - conflict-skipping mode:
   - host case conflict becomes `SKIP`;
   - unrelated creates still apply;
@@ -376,6 +426,10 @@ Add e2e tests:
   - reports `CONFLICT` with `case conflict`;
   - leaves existing host path unchanged;
   - creates no unrelated symlinks;
+- default link with an existing parent directory differing only by case:
+  - exits non-zero;
+  - reports `CONFLICT` with `case conflict`;
+  - does not create a sibling directory with different casing;
 - dry-run:
   - reports conflict;
   - exits non-zero;
@@ -407,21 +461,55 @@ type PlanOptions struct {
 }
 ```
 
-Suggested helper names:
+Suggested helper/data structure shape:
 
 ```go
 func collisionKey(relPath string, caseSensitive bool) string
-func caseFoldPath(path string) string
+func caseFoldPath(path string) string // simple lowercase folding for now
+
+type HostCaseIndex struct {
+    Entries map[string][]HostCaseEntry // folded relpath -> actual spellings
+}
+
+type HostCaseEntry struct {
+    RelPath string // actual host-relative spelling from os.ReadDir
+    IsDir   bool
+}
+
+func BuildHostCaseIndex(hostRoot string, relPaths []string) (*HostCaseIndex, error)
+func (idx *HostCaseIndex) CaseVariantPrefix(relPath string) (actualRelPath string, ok bool)
 ```
 
-For Phase 2, add a helper that checks only one parent directory level for a
-case-insensitive basename match after exact `Lstat` reports missing:
+Implementation pattern for `BuildHostCaseIndex`:
 
-```go
-func findCaseVariant(parentDir, basename string) (string, bool, error)
-```
+1. Clean every planned relpath and split it into path components.
+2. Start from the host root for each planned path.
+3. Read only the currently relevant host directories, using a cache keyed by
+   absolute directory path so repeated prefixes do not reread the same
+   directory.
+4. Sort directory entries before processing.
+5. For the next planned component, collect host entries whose names lowercase to
+   the same key.
+6. Add each matching entry's actual host-relative spelling to `Entries`.
+7. Continue only through matching entries that are real directories. Do not
+   traverse symlinked directories; Cubby does not link or manage directories as
+   targets.
+8. Stop descending when no matching parent directory exists; deeper host case
+   conflicts cannot exist below a missing parent.
 
-Sort directory entries before choosing/reporting a match so output is stable.
+Implementation pattern for `CaseVariantPrefix`:
+
+1. Generate cleaned prefixes for the planned relpath, e.g.
+   `nvim/init.work.lua` -> `nvim`, `nvim/init.work.lua`.
+2. For each prefix, look up the lowercase folded key in `Entries`.
+3. If any actual spelling differs from the planned prefix, return the first
+   stable sorted actual spelling as the conflict target.
+4. If all indexed spellings match exactly, return no host case conflict.
+
+Do not implement Phase 2 as "only check the parent directory after exact
+`Lstat` reports missing". That misses case-insensitive filesystems where exact
+`Lstat` succeeds through an alias, and it misses parent-directory case variants
+when the final leaf does not exist.
 
 ## Verification
 
@@ -430,7 +518,12 @@ After each layer:
 - `go test ./...` passes.
 - `make lint` passes.
 - `make check` passes.
-- Default case-insensitive planned collisions are detected before mutation.
+- Default case-insensitive planned source-source collisions are detected before
+  mutation.
+- Default case-insensitive source-host case conflicts are detected before exact
+  `NOOP`/`CREATE` classification.
+- Existing parent-directory case variants are detected, not only leaf-name
+  variants.
 - Dry-run exit codes mirror real link behavior.
 - Conflict-skipping mode skips case conflicts and does not fail after partial
   creation.

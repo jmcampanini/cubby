@@ -136,6 +136,267 @@ func TestPlanLinkClassifiesCrossSourceCollisions(t *testing.T) {
 	}
 }
 
+func TestPlanLinkCaseInsensitiveCollisionWithinSameSource(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"foo.work", "FOO.work"}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	if len(plan.Actions) != 2 {
+		t.Fatalf("len(actions) = %d, want 2", len(plan.Actions))
+	}
+	if plan.Actions[0].Kind != ActionCreate {
+		t.Fatalf("first action = %+v, want create", plan.Actions[0])
+	}
+	if plan.Actions[1].Kind != ActionConflict || !plan.Actions[1].Fatal {
+		t.Fatalf("second action = %+v, want fatal conflict", plan.Actions[1])
+	}
+	if !strings.Contains(plan.Actions[1].Reason, "path case collision") || !strings.Contains(plan.Actions[1].Reason, "foo.work") {
+		t.Fatalf("case collision reason = %q, want path case collision with winner", plan.Actions[1].Reason)
+	}
+}
+
+func TestPlanLinkCaseInsensitiveCollisionAcrossSources(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src1 := filepath.Join(root, "src1")
+	src2 := filepath.Join(root, "src2")
+
+	plan, err := PlanLink(host, []SourceFiles{
+		{Name: "one", Root: src1, RelPaths: []string{"foo.work"}},
+		{Name: "two", Root: src2, RelPaths: []string{"FOO.work"}},
+	}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	if plan.Actions[0].Kind != ActionCreate || plan.Actions[0].RelPath != "foo.work" {
+		t.Fatalf("winner action = %+v, want foo.work create", plan.Actions[0])
+	}
+	if plan.Actions[1].Kind != ActionConflict || !plan.Actions[1].Fatal || !strings.Contains(plan.Actions[1].Reason, "path case collision") {
+		t.Fatalf("case collision action = %+v, want fatal path case collision", plan.Actions[1])
+	}
+}
+
+func TestPlanLinkCaseInsensitiveCollisionCanBeSkipped(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"foo.work", "FOO.work", "bar.work"}}}, PlanOptions{IgnoreConflicts: true})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, "foo.work", ActionCreate, false, "")
+	assertAction(t, plan, "FOO.work", ActionSkip, false, "path case collision")
+	assertAction(t, plan, "bar.work", ActionCreate, false, "")
+}
+
+func TestApplyLinkCreatesOnlyNonSkippedCaseCollisionActions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(src, "foo.work"), "foo\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"foo.work", "FOO.work", "bar.work"}}}, PlanOptions{IgnoreConflicts: true})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	if err := ApplyLink(plan); err != nil {
+		t.Fatalf("ApplyLink() error = %v", err)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "foo.work"))
+	assertSymlinkExists(t, filepath.Join(host, "bar.work"))
+}
+
+func TestPlanLinkHostCaseConflictIsFatalByDefault(t *testing.T) {
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"FOO.work", "bar.work"}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, "FOO.work", ActionConflict, true, "host path case conflict with foo.work")
+	assertAction(t, plan, "bar.work", ActionCreate, false, "")
+}
+
+func TestPlanLinkHostCaseConflictIncludesParentPathVariants(t *testing.T) {
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "Nvim", "init.work.lua"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{filepath.Join("nvim", "init.work.lua")}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, filepath.Join("nvim", "init.work.lua"), ActionConflict, true, "host path case conflict with Nvim")
+}
+
+func TestPlanLinkHostCaseConflictFindsLeafVariantUnderExactParent(t *testing.T) {
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "nvim", "Init.work.lua"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{filepath.Join("nvim", "init.work.lua")}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, filepath.Join("nvim", "init.work.lua"), ActionConflict, true, "host path case conflict with nvim/Init.work.lua")
+}
+
+func TestPlanLinkHostCaseConflictSearchesSiblingParentVariants(t *testing.T) {
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustMkdir(t, filepath.Join(host, "foo"))
+	mustWrite(t, filepath.Join(host, "Foo", "bar.work"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{filepath.Join("foo", "bar.work")}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, filepath.Join("foo", "bar.work"), ActionConflict, true, "host path case conflict with Foo")
+}
+
+func TestPlanLinkHostCaseConflictCanBeSkipped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"FOO.work", "bar.work"}}}, PlanOptions{IgnoreConflicts: true})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, "FOO.work", ActionSkip, false, "host path case conflict with foo.work")
+	assertAction(t, plan, "bar.work", ActionCreate, false, "")
+	if err := ApplyLink(plan); err != nil {
+		t.Fatalf("ApplyLink() error = %v", err)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "bar.work"))
+}
+
+func TestPlanLinkHostCaseConflictPreventsApplyCreates(t *testing.T) {
+	root := t.TempDir()
+	requireCaseSensitiveFilesystem(t, root)
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"FOO.work", "bar.work"}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	if err := ApplyLink(plan); err == nil {
+		t.Fatalf("ApplyLink() error = nil, want fatal conflict refusal")
+	}
+	if _, err := os.Lstat(filepath.Join(host, "bar.work")); !os.IsNotExist(err) {
+		t.Fatalf("bar.work Lstat error = %v, want not exist", err)
+	}
+}
+
+func TestPlanLinkCaseSensitiveDoesNotUseHostCasePolicyConflict(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"FOO.work"}}}, PlanOptions{CaseSensitive: true})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	if len(plan.Actions) != 1 {
+		t.Fatalf("len(actions) = %d, want 1", len(plan.Actions))
+	}
+	if strings.Contains(plan.Actions[0].Reason, "host path case conflict") {
+		t.Fatalf("case-sensitive action = %+v, want no Cubby host case-policy conflict", plan.Actions[0])
+	}
+}
+
+func TestPlanLinkExactPathDoesNotRequireReadableParentDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permissions differ on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	parent := filepath.Join(host, "locked")
+	mustWrite(t, filepath.Join(parent, "file.work"), "host\n")
+	if err := os.Chmod(parent, 0o111); err != nil {
+		t.Fatalf("Chmod(%q) error = %v", parent, err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(parent, 0o755); err != nil {
+			t.Fatalf("restore Chmod(%q) error = %v", parent, err)
+		}
+	})
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{filepath.Join("locked", "file.work")}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v, want exact-path classification without reading parent", err)
+	}
+	assertAction(t, plan, filepath.Join("locked", "file.work"), ActionConflict, true, "host path already exists")
+}
+
+func TestPlanLinkExactPathStillUsesExactClassification(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(host, "FOO.work"), "host\n")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"FOO.work"}}}, PlanOptions{})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, "FOO.work", ActionConflict, true, "host path already exists")
+}
+
+func TestPlanLinkCaseSensitiveAllowsCaseDistinctPaths(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+
+	plan, err := PlanLink(host, []SourceFiles{{Name: "src", Root: src, RelPaths: []string{"foo.work", "FOO.work"}}}, PlanOptions{CaseSensitive: true})
+	if err != nil {
+		t.Fatalf("PlanLink() error = %v", err)
+	}
+	assertAction(t, plan, "foo.work", ActionCreate, false, "")
+	assertAction(t, plan, "FOO.work", ActionCreate, false, "")
+}
+
+func TestRenderCaseCollisionIncludesWinnerRelpath(t *testing.T) {
+	var buf bytes.Buffer
+	action := Action{Kind: ActionConflict, RelPath: "FOO.work", Reason: "path case collision with foo.work", SourceName: "src", Fatal: true}
+	if err := RenderAction(&buf, action); err != nil {
+		t.Fatalf("RenderAction() error = %v", err)
+	}
+	got := buf.String()
+	if !strings.HasPrefix(got, "CONFLICT FOO.work") || !strings.Contains(got, "path case collision with foo.work") {
+		t.Fatalf("RenderAction() = %q, want conflict with case collision winner", got)
+	}
+}
+
 func TestApplyLinkRefusesFatalConflictPlanBeforeCreates(t *testing.T) {
 	root := t.TempDir()
 	host := filepath.Join(root, "host")
@@ -207,6 +468,28 @@ func assertAction(t *testing.T, plan Plan, relPath string, kind ActionKind, fata
 		return
 	}
 	t.Fatalf("action for %q not found in %+v", relPath, plan.Actions)
+}
+
+func requireCaseSensitiveFilesystem(t *testing.T, dir string) {
+	t.Helper()
+	probe := filepath.Join(dir, "case-probe")
+	mustWrite(t, probe, "probe\n")
+	if _, err := os.Lstat(filepath.Join(dir, "CASE-PROBE")); err == nil {
+		t.Skip("filesystem is case-insensitive; exact missing-path case-variant behavior is not observable")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("Lstat case-sensitivity probe error = %v", err)
+	}
+}
+
+func assertSymlinkExists(t *testing.T, path string) {
+	t.Helper()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error = %v", path, err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("%q mode = %v, want symlink", path, info.Mode())
+	}
 }
 
 func mustWrite(t *testing.T, path, content string) {

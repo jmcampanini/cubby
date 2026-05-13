@@ -17,6 +17,7 @@ var DefaultSourceConfig = SourceConfig{}
 type HostConfig struct {
 	Profiles        []string     `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
 	IgnoreConflicts bool         `toml:"ignore_conflicts" config:"ignore-conflicts" help:"skip conflicting host paths instead of failing link"`
+	CaseSensitive   bool         `toml:"case_sensitive" config:"case-sensitive" help:"treat projected host paths as case-sensitive"`
 	Sources         []HostSource `toml:"source"`
 }
 

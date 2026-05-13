@@ -66,6 +66,9 @@ that match the pattern but should not be projected.
 - Symlinks are **relative** (matching `stow`'s default), computed via Go's
   `filepath.Rel`. The real file lives in the source repo; the symlink lives in
   the host repo.
+- Cubby links **regular source files only**. Source directories and source
+  symlinks, including symlinks to directories, are not link targets and are not
+  projected into the host repo.
 - **Idempotent**: re-running `cubby link` over a correctly-linked file is a
   no-op.
 
