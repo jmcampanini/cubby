@@ -788,6 +788,20 @@ func TestLinkHonorsSourceIgnoreRules(t *testing.T) {
 	assertSymlinkExists(t, filepath.Join(host, "nvim", "keep.work.lua"))
 }
 
+func TestLinkInvalidSourceIgnorePatternFails(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\nignore = [\"[\"]\n")
+	mustWrite(t, filepath.Join(src, "keep.work"), "source\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"shared\"\npath = \""+src+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	assertFailureContains(t, result, "invalid ignore pattern")
+	assertNotExist(t, filepath.Join(host, "keep.work"))
+}
+
 func TestLinkIgnoresUndeclaredLookalikes(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink privileges vary on Windows")

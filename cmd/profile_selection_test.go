@@ -30,6 +30,12 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"personal"},
 		},
 		{
+			name:         "CSV CUBBY_PROFILE input is split and trimmed",
+			hostProfiles: []string{"client"},
+			envProfile:   stringPtr("work, personal"),
+			wantProfiles: []string{"work", "personal"},
+		},
+		{
 			name:         "flag overrides env completely",
 			hostProfiles: []string{"work"},
 			envProfile:   stringPtr("work"),

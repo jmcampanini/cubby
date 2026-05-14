@@ -169,7 +169,7 @@ source repo, and one explicitly selected profile.
 - Multi-source behavior and cross-source collisions.
 - Status/prune/doctor state discovery.
 
-## Milestone 3: Profile Selection and Discovery Slice
+## [x] Milestone 3: Profile Selection and Discovery Slice
 
 **Outcome:** The working single-source flow supports realistic profile
 defaults, flag/env selection, source-declared profile availability, source
@@ -244,7 +244,7 @@ ignore rules, and scriptable profile discovery output.
 - `gitignore check` and `gitignore sync` check/sync patterns for every
   source-declared profile.
 
-## Milestone 4: Conflict and Safety Slice
+## [x] Milestone 4: Conflict and Safety Slice
 
 **Outcome:** `cubby link` is safe to run in a real host repo because conflicts
 are detected, reported, and never resolved by deleting user files.
