@@ -101,6 +101,430 @@ func TestLinkUnlinkSingleSourceSmoke(t *testing.T) {
 	}
 }
 
+func TestLinkConflictSafetyEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source conflict\n")
+	mustWrite(t, filepath.Join(src, "create.work"), "source create\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host conflict\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want conflict failure; stdout = %s", result.stdout)
+	}
+	assertContains(t, result.stdout, "CONFLICT conflict.work")
+	if got := mustRead(t, filepath.Join(host, "conflict.work")); got != "host conflict\n" {
+		t.Fatalf("conflict file = %q, want untouched", got)
+	}
+	assertNotExist(t, filepath.Join(host, "create.work"))
+}
+
+func TestLinkUnexpectedSymlinkConflictEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	other := filepath.Join(tmp, "other")
+	hostPath := filepath.Join(host, "conflict.work")
+	otherPath := filepath.Join(other, "conflict.work")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source\n")
+	mustWrite(t, otherPath, "other\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustSymlink(t, hostPath, otherPath)
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want unexpected symlink failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT conflict.work")
+	assertSymlinkResolvesTo(t, hostPath, otherPath)
+}
+
+func TestLinkIgnoreConflictsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source conflict\n")
+	mustWrite(t, filepath.Join(src, "create.work"), "source create\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host conflict\n")
+
+	result := runCubby(t, bin, host, "link", "--ignore-conflicts")
+	if result.code != 0 {
+		t.Fatalf("link --ignore-conflicts code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "SKIP conflict.work")
+	assertSymlinkExists(t, filepath.Join(host, "create.work"))
+	if got := mustRead(t, filepath.Join(host, "conflict.work")); got != "host conflict\n" {
+		t.Fatalf("conflict file = %q, want untouched", got)
+	}
+}
+
+func TestLinkHostConfigIgnoreConflictsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source conflict\n")
+	mustWrite(t, filepath.Join(src, "create.work"), "source create\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\nignore_conflicts = true\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host conflict\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code != 0 {
+		t.Fatalf("link with host ignore_conflicts code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "SKIP conflict.work")
+	assertSymlinkExists(t, filepath.Join(host, "create.work"))
+}
+
+func TestLinkCaseCollisionDefaultEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src1, "foo.work"), "one\n")
+	mustWrite(t, filepath.Join(src2, "FOO.work"), "two\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want case collision failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT FOO.work")
+	assertContains(t, result.stdout, "path case collision with foo.work")
+	assertNotExist(t, filepath.Join(host, "foo.work"))
+}
+
+func TestLinkCaseCollisionDryRunEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src1, "foo.work"), "one\n")
+	mustWrite(t, filepath.Join(src2, "FOO.work"), "two\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "link", "--dry-run")
+	if result.code == 0 {
+		t.Fatalf("link --dry-run code = 0, want case collision failure")
+	}
+	assertContains(t, result.stdout, "CREATE foo.work")
+	assertContains(t, result.stdout, "CONFLICT FOO.work")
+	assertContains(t, result.stdout, "path case collision")
+	assertNotExist(t, filepath.Join(host, "foo.work"))
+}
+
+func TestLinkCaseCollisionIgnoreConflictsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src1, "foo.work"), "one\n")
+	mustWrite(t, filepath.Join(src2, "FOO.work"), "two\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "link", "--ignore-conflicts")
+	if result.code != 0 {
+		t.Fatalf("link --ignore-conflicts code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "SKIP FOO.work")
+	assertContains(t, result.stdout, "path case collision")
+	assertSymlinkResolvesTo(t, filepath.Join(host, "foo.work"), filepath.Join(src1, "foo.work"))
+}
+
+func TestLinkExistingHostCaseConflictDefaultEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	requireCaseSensitiveFilesystem(t, tmp)
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "FOO.work"), "source\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want host case conflict failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT FOO.work")
+	assertContains(t, result.stdout, "host path case conflict with foo.work")
+	if got := mustRead(t, filepath.Join(host, "foo.work")); got != "host\n" {
+		t.Fatalf("host case-conflict file = %q, want untouched", got)
+	}
+	assertNotExist(t, filepath.Join(host, "bar.work"))
+}
+
+func TestLinkExistingHostCaseConflictWithParentVariantEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	requireCaseSensitiveFilesystem(t, tmp)
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "nvim", "init.work.lua"), "source\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "Nvim", "init.work.lua"), "host\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want host case conflict failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT nvim/init.work.lua")
+	assertContains(t, result.stdout, "host path case conflict with Nvim")
+	if got := mustRead(t, filepath.Join(host, "Nvim", "init.work.lua")); got != "host\n" {
+		t.Fatalf("host parent-variant file = %q, want untouched", got)
+	}
+	assertNotExist(t, filepath.Join(host, "bar.work"))
+}
+
+func TestLinkExistingHostCaseConflictDryRunEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	requireCaseSensitiveFilesystem(t, tmp)
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "FOO.work"), "source\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	result := runCubby(t, bin, host, "link", "--dry-run")
+	if result.code == 0 {
+		t.Fatalf("link --dry-run code = 0, want host case conflict failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT FOO.work")
+	assertContains(t, result.stdout, "host path case conflict with foo.work")
+	assertContains(t, result.stdout, "CREATE bar.work")
+	if got := mustRead(t, filepath.Join(host, "foo.work")); got != "host\n" {
+		t.Fatalf("host case-conflict file = %q, want untouched", got)
+	}
+	assertNotExist(t, filepath.Join(host, "bar.work"))
+}
+
+func TestLinkExistingHostCaseConflictIgnoreConflictsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	requireCaseSensitiveFilesystem(t, tmp)
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "FOO.work"), "source\n")
+	mustWrite(t, filepath.Join(src, "bar.work"), "bar\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	result := runCubby(t, bin, host, "link", "--ignore-conflicts")
+	if result.code != 0 {
+		t.Fatalf("link --ignore-conflicts code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "SKIP FOO.work")
+	assertContains(t, result.stdout, "host path case conflict with foo.work")
+	if got := mustRead(t, filepath.Join(host, "foo.work")); got != "host\n" {
+		t.Fatalf("host case-conflict file = %q, want untouched", got)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "bar.work"))
+}
+
+func TestLinkExistingHostCaseSensitiveDryRunDoesNotReportPolicyConflictEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "FOO.work"), "source\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "foo.work"), "host\n")
+
+	result := runCubby(t, bin, host, "link", "--dry-run", "--case-sensitive")
+	if strings.Contains(result.stdout, "host path case conflict") {
+		t.Fatalf("case-sensitive dry-run stdout = %q, want no host case-policy conflict", result.stdout)
+	}
+}
+
+func TestLinkCaseSensitiveDryRunDoesNotReportCaseCollisionEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src1, "foo.work"), "one\n")
+	mustWrite(t, filepath.Join(src2, "FOO.work"), "two\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "link", "--dry-run", "--case-sensitive")
+	if result.code != 0 {
+		t.Fatalf("link --dry-run --case-sensitive code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "CREATE foo.work")
+	assertContains(t, result.stdout, "CREATE FOO.work")
+	if strings.Contains(result.stdout, "path case collision") || strings.Contains(result.stdout, "CONFLICT") || strings.Contains(result.stdout, "SKIP") {
+		t.Fatalf("case-sensitive dry-run stdout = %q, want no case collision conflict/skip", result.stdout)
+	}
+}
+
+func TestLinkCrossSourceCollisionEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src1, "same.work"), "one\n")
+	mustWrite(t, filepath.Join(src1, "unique.work"), "unique\n")
+	mustWrite(t, filepath.Join(src2, "same.work"), "two\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	result := runCubby(t, bin, host, "link")
+	if result.code == 0 {
+		t.Fatalf("link code = 0, want collision failure")
+	}
+	assertContains(t, result.stdout, "CONFLICT same.work")
+	assertContains(t, result.stdout, "collision")
+	assertNotExist(t, filepath.Join(host, "same.work"))
+	assertNotExist(t, filepath.Join(host, "unique.work"))
+
+	ignoredHost := filepath.Join(tmp, "ignored-host")
+	mustWrite(t, filepath.Join(ignoredHost, ".cubby.toml"), "profiles = [\"work\"]\nignore_conflicts = true\n\n[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+	ignored := runCubby(t, bin, ignoredHost, "link")
+	if ignored.code != 0 {
+		t.Fatalf("ignored collision code = %d, stdout = %s, stderr = %s", ignored.code, ignored.stdout, ignored.stderr)
+	}
+	assertContains(t, ignored.stdout, "SKIP same.work")
+	assertSymlinkResolvesTo(t, filepath.Join(ignoredHost, "same.work"), filepath.Join(src1, "same.work"))
+	assertSymlinkExists(t, filepath.Join(ignoredHost, "unique.work"))
+}
+
+func TestLinkDryRunEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "create.work"), "create\n")
+	mustWrite(t, filepath.Join(src, "linked.work"), "linked\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source conflict\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host conflict\n")
+	mustSymlink(t, filepath.Join(host, "linked.work"), filepath.Join(src, "linked.work"))
+
+	result := runCubby(t, bin, host, "link", "--dry-run")
+	if result.code == 0 {
+		t.Fatalf("link --dry-run code = 0, want conflict-equivalent failure")
+	}
+	assertContains(t, result.stdout, "CREATE create.work")
+	assertContains(t, result.stdout, "NOOP linked.work already linked")
+	assertContains(t, result.stdout, "CONFLICT conflict.work")
+	assertNotExist(t, filepath.Join(host, "create.work"))
+	if got := mustRead(t, filepath.Join(host, "conflict.work")); got != "host conflict\n" {
+		t.Fatalf("conflict file = %q, want untouched", got)
+	}
+}
+
+func TestUnlinkDryRunAndSkipSafetyEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	other := filepath.Join(tmp, "other")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "linked.work"), "linked\n")
+	mustWrite(t, filepath.Join(src, "regular.work"), "regular source\n")
+	mustWrite(t, filepath.Join(src, "unexpected.work"), "unexpected source\n")
+	mustWrite(t, filepath.Join(src, "missing.work"), "missing source\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustSymlink(t, filepath.Join(host, "linked.work"), filepath.Join(src, "linked.work"))
+	mustWrite(t, filepath.Join(host, "regular.work"), "host regular\n")
+	mustWrite(t, filepath.Join(other, "unexpected.work"), "other\n")
+	mustSymlink(t, filepath.Join(host, "unexpected.work"), filepath.Join(other, "unexpected.work"))
+
+	result := runCubby(t, bin, host, "unlink", "--dry-run")
+	if result.code != 0 {
+		t.Fatalf("unlink --dry-run code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	assertContains(t, result.stdout, "REMOVE linked.work")
+	assertContains(t, result.stdout, "SKIP regular.work")
+	assertContains(t, result.stdout, "SKIP unexpected.work")
+	assertContains(t, result.stdout, "NOOP missing.work missing")
+	assertSymlinkExists(t, filepath.Join(host, "linked.work"))
+	if got := mustRead(t, filepath.Join(host, "regular.work")); got != "host regular\n" {
+		t.Fatalf("regular file = %q, want untouched", got)
+	}
+	assertSymlinkResolvesTo(t, filepath.Join(host, "unexpected.work"), filepath.Join(other, "unexpected.work"))
+}
+
 func TestGitignoreCheckSyncEndToEndFromHostRoot(t *testing.T) {
 	bin := buildCubby(t)
 	tmp := t.TempDir()
@@ -543,6 +967,17 @@ func assertContains(t *testing.T, got, want string) {
 	}
 }
 
+func requireCaseSensitiveFilesystem(t *testing.T, dir string) {
+	t.Helper()
+	probe := filepath.Join(dir, "case-probe")
+	mustWrite(t, probe, "probe\n")
+	if _, err := os.Lstat(filepath.Join(dir, "CASE-PROBE")); err == nil {
+		t.Skip("filesystem is case-insensitive; exact missing-path case-variant behavior is not observable")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("Lstat case-sensitivity probe error = %v", err)
+	}
+}
+
 func assertSymlinkExists(t *testing.T, path string) {
 	t.Helper()
 	info, err := os.Lstat(path)
@@ -551,6 +986,22 @@ func assertSymlinkExists(t *testing.T, path string) {
 	}
 	if info.Mode()&os.ModeSymlink == 0 {
 		t.Fatalf("%q mode = %v, want symlink", path, info.Mode())
+	}
+}
+
+func assertSymlinkResolvesTo(t *testing.T, linkPath, targetPath string) {
+	t.Helper()
+	assertSymlinkExists(t, linkPath)
+	resolved, err := filepath.EvalSymlinks(linkPath)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", linkPath, err)
+	}
+	want, err := filepath.EvalSymlinks(targetPath)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", targetPath, err)
+	}
+	if resolved != want {
+		t.Fatalf("%q resolves to %q, want %q", linkPath, resolved, want)
 	}
 }
 
@@ -575,6 +1026,20 @@ func mustWrite(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
+	}
+}
+
+func mustSymlink(t *testing.T, linkPath, targetPath string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(linkPath), err)
+	}
+	target, err := filepath.Rel(filepath.Dir(linkPath), targetPath)
+	if err != nil {
+		t.Fatalf("Rel(%q, %q) error = %v", filepath.Dir(linkPath), targetPath, err)
+	}
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Fatalf("Symlink(%q, %q) error = %v", target, linkPath, err)
 	}
 }
 

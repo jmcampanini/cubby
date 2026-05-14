@@ -93,8 +93,8 @@ source repo, and one explicitly selected profile.
 - Add a small internal package for discovering source profile files.
 - Walk the source repo with `filepath.WalkDir`.
 - Skip directories, `.git/`, and the source `cubby.toml` config.
-- Consider regular files only in this slice; source symlink handling is
-  deferred unless needed by tests.
+- Consider regular source files only. Source symlinks are not projected, and
+  directory symlinks are not a supported link target.
 - Match against declared source profiles only.
 - Match basenames using the valid forms:
   - `*.<profile>.*`, e.g. `nvim/init.work.lua`, `archive.work.tar.gz`
@@ -255,7 +255,7 @@ are detected, reported, and never resolved by deleting user files.
 - Detect an unexpected symlink already present at the projected host path.
 - Treat cross-source collisions as conflicts once multi-source config appears
   in this slice's tests.
-- Honor per-source `ignore_conflicts`.
+- Honor top-level host `ignore_conflicts` as the host-wide conflict-skip default.
 - Add CLI conflict skipping through `--ignore-conflicts` or the final selected
   flag name.
 - Add `--dry-run` for `link` and `unlink` so users can preview planned creates,

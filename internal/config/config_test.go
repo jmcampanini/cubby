@@ -18,7 +18,7 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 
 	mustWrite(t, filepath.Join(src1, SourceConfigFileName), "profiles = [\" work \", \"client\", \"work\"]\n")
 	mustWrite(t, filepath.Join(src2, SourceConfigFileName), "profiles = [\"work\", \"home\"]\n")
-	mustWrite(t, filepath.Join(host, HostConfigFileName), "profiles = [\" work \", \"personal\", \"work\", \"\"]\n\n[[source]]\nname = \"one\"\npath = \"../src1\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\nignore_conflicts = true\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "profiles = [\" work \", \"personal\", \"work\", \"\"]\nignore_conflicts = true\ncase_sensitive = true\n\n[[source]]\nname = \"one\"\npath = \"../src1\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
 
 	mustChdir(t, host)
 
@@ -39,11 +39,49 @@ func TestLoadProjectUsesCurrentDirectoryAsHostRootAndUnionsDeclaredProfiles(t *t
 	if project.Sources[0].ResolvedPath != wantSrc1 {
 		t.Fatalf("first source path = %q, want %q", project.Sources[0].ResolvedPath, wantSrc1)
 	}
-	if project.Sources[0].IgnoreConflicts {
-		t.Fatalf("first source IgnoreConflicts = true, want default false")
+	if !project.Host.IgnoreConflicts {
+		t.Fatalf("host IgnoreConflicts = false, want parsed true")
 	}
-	if !project.Sources[1].IgnoreConflicts {
-		t.Fatalf("second source IgnoreConflicts = false, want parsed true")
+	if !project.Host.CaseSensitive {
+		t.Fatalf("host CaseSensitive = false, want parsed true")
+	}
+}
+
+func TestLoadProjectRejectsPerSourceIgnoreConflicts(t *testing.T) {
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustMkdir(t, host)
+	mustMkdir(t, src)
+	mustWrite(t, filepath.Join(src, SourceConfigFileName), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"work\"\npath = \"../src\"\nignore_conflicts = true\n")
+	mustChdir(t, host)
+
+	_, err := LoadProject()
+	if err == nil {
+		t.Fatalf("LoadProject() error = nil, want unknown per-source ignore_conflicts error")
+	}
+	if !strings.Contains(err.Error(), "unknown keys") || !strings.Contains(err.Error(), "ignore_conflicts") {
+		t.Fatalf("LoadProject() error = %q, want strict unknown ignore_conflicts error", err)
+	}
+}
+
+func TestLoadProjectRejectsPerSourceCaseSensitive(t *testing.T) {
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src := filepath.Join(tmp, "src")
+	mustMkdir(t, host)
+	mustMkdir(t, src)
+	mustWrite(t, filepath.Join(src, SourceConfigFileName), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\nname = \"work\"\npath = \"../src\"\ncase_sensitive = true\n")
+	mustChdir(t, host)
+
+	_, err := LoadProject()
+	if err == nil {
+		t.Fatalf("LoadProject() error = nil, want unknown per-source case_sensitive error")
+	}
+	if !strings.Contains(err.Error(), "unknown keys") || !strings.Contains(err.Error(), "case_sensitive") {
+		t.Fatalf("LoadProject() error = %q, want strict unknown case_sensitive error", err)
 	}
 }
 

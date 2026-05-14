@@ -15,15 +15,16 @@ var DefaultSourceConfig = SourceConfig{}
 
 // HostConfig is the host repository's .cubby.toml schema.
 type HostConfig struct {
-	Profiles []string     `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
-	Sources  []HostSource `toml:"source"`
+	Profiles        []string     `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+	IgnoreConflicts bool         `toml:"ignore_conflicts" config:"ignore-conflicts" help:"skip conflicting host paths instead of failing link"`
+	CaseSensitive   bool         `toml:"case_sensitive" config:"case-sensitive" help:"treat projected host paths as case-sensitive"`
+	Sources         []HostSource `toml:"source"`
 }
 
 // HostSource is one [[source]] entry in the host config.
 type HostSource struct {
-	Name            string `toml:"name"`
-	Path            string `toml:"path"`
-	IgnoreConflicts bool   `toml:"ignore_conflicts"`
+	Name string `toml:"name"`
+	Path string `toml:"path"`
 }
 
 // SourceConfig is a source repository's cubby.toml schema.
