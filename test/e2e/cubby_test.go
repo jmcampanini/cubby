@@ -823,6 +823,153 @@ func TestLinkIgnoresUndeclaredLookalikes(t *testing.T) {
 	assertNotExist(t, filepath.Join(host, "nvim", "init.client.lua"))
 }
 
+func TestMultiSourceLinkUnlinkWithMissingProfileDiagnosticsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	personalSrc := filepath.Join(tmp, "personal-src")
+	workSrc := filepath.Join(tmp, "work-src")
+	personalFile := filepath.Join(personalSrc, "personal.personal")
+	workFile := filepath.Join(workSrc, "work.work")
+	mustWrite(t, filepath.Join(personalSrc, "cubby.toml"), "profiles = [\"personal\"]\n")
+	mustWrite(t, filepath.Join(workSrc, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, personalFile, "personal\n")
+	mustWrite(t, workFile, "work\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\", \"personal\"]\n\n[[source]]\nname = \"personal\"\npath = \""+personalSrc+"\"\n\n[[source]]\nname = \"work\"\npath = \""+workSrc+"\"\n")
+
+	link := runCubby(t, bin, host, "link")
+	if link.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", link.code, link.stdout, link.stderr)
+	}
+	assertContains(t, link.stderr, "source \"personal\" does not declare selected profile \"work\"; skipping")
+	assertContains(t, link.stderr, "source \"work\" does not declare selected profile \"personal\"; skipping")
+	assertSymlinkResolvesTo(t, filepath.Join(host, "personal.personal"), personalFile)
+	assertSymlinkResolvesTo(t, filepath.Join(host, "work.work"), workFile)
+
+	unlink := runCubby(t, bin, host, "unlink")
+	if unlink.code != 0 {
+		t.Fatalf("unlink code = %d, stdout = %s, stderr = %s", unlink.code, unlink.stdout, unlink.stderr)
+	}
+	assertContains(t, unlink.stderr, "source \"personal\" does not declare selected profile \"work\"; skipping")
+	assertNotExist(t, filepath.Join(host, "personal.personal"))
+	assertNotExist(t, filepath.Join(host, "work.work"))
+}
+
+func TestMultiSourceExplicitProfileAndDryRunDiagnosticsEndToEnd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	workSrc := filepath.Join(tmp, "work-src")
+	clientSrc := filepath.Join(tmp, "client-src")
+	mustWrite(t, filepath.Join(workSrc, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(clientSrc, "cubby.toml"), "profiles = [\"client\"]\n")
+	mustWrite(t, filepath.Join(workSrc, "work.work"), "work\n")
+	mustWrite(t, filepath.Join(clientSrc, "client.client"), "client\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"work\"\npath = \""+workSrc+"\"\n\n[[source]]\nname = \"client\"\npath = \""+clientSrc+"\"\n")
+
+	dryRun := runCubby(t, bin, host, "link", "--dry-run", "--profile", "work", "--profile", "client")
+	if dryRun.code != 0 {
+		t.Fatalf("link --dry-run code = %d, stdout = %s, stderr = %s", dryRun.code, dryRun.stdout, dryRun.stderr)
+	}
+	assertContains(t, dryRun.stdout, "CREATE work.work")
+	assertContains(t, dryRun.stdout, "CREATE client.client")
+	assertContains(t, dryRun.stderr, "source \"work\" does not declare selected profile \"client\"; skipping")
+	assertNotExist(t, filepath.Join(host, "work.work"))
+	assertNotExist(t, filepath.Join(host, "client.client"))
+
+	link := runCubby(t, bin, host, "link", "--profile", "work,client")
+	if link.code != 0 {
+		t.Fatalf("link code = %d, stdout = %s, stderr = %s", link.code, link.stdout, link.stderr)
+	}
+	assertSymlinkExists(t, filepath.Join(host, "work.work"))
+	assertSymlinkExists(t, filepath.Join(host, "client.client"))
+}
+
+func TestSourceListEndToEnd(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"client\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	jsonResult := runCubby(t, bin, host, "source", "list", "--json")
+	if jsonResult.code != 0 {
+		t.Fatalf("source list --json code = %d, stdout = %s, stderr = %s", jsonResult.code, jsonResult.stdout, jsonResult.stderr)
+	}
+	wantJSON := `[{"name":"one","path":"` + filepath.Clean(src1) + `","profiles":["work","personal"]},{"name":"two","path":"` + filepath.Clean(src2) + `","profiles":["client"]}]` + "\n"
+	if jsonResult.stdout != wantJSON {
+		t.Fatalf("source list --json stdout = %q, want %q", jsonResult.stdout, wantJSON)
+	}
+
+	tableResult := runCubby(t, bin, host, "source", "list")
+	if tableResult.code != 0 {
+		t.Fatalf("source list code = %d, stdout = %s, stderr = %s", tableResult.code, tableResult.stdout, tableResult.stderr)
+	}
+	for _, want := range []string{"NAME", "PATH", "PROFILES", "one", filepath.Clean(src1), "work,personal", "two", filepath.Clean(src2), "client"} {
+		assertContains(t, tableResult.stdout, want)
+	}
+}
+
+func TestGitignoreCheckSyncMultiSourceUnionEndToEnd(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\", \"personal\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"client\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	checkBefore := runCubby(t, bin, host, "gitignore", "check")
+	if checkBefore.code == 0 {
+		t.Fatalf("gitignore check code = 0, want missing patterns")
+	}
+	for _, want := range []string{"*.client.*", "*.client", "*.personal.*", "*.personal", "*.work.*", "*.work"} {
+		assertContains(t, checkBefore.stdout, want)
+	}
+	sync := runCubby(t, bin, host, "gitignore", "sync")
+	if sync.code != 0 {
+		t.Fatalf("gitignore sync code = %d, stdout = %s, stderr = %s", sync.code, sync.stdout, sync.stderr)
+	}
+	content := mustRead(t, filepath.Join(host, ".gitignore"))
+	for _, want := range []string{"*.client.*\n", "*.client\n", "*.personal.*\n", "*.personal\n", "*.work.*\n", "*.work\n"} {
+		assertContains(t, content, want)
+	}
+	checkAfter := runCubby(t, bin, host, "gitignore", "check")
+	if checkAfter.code != 0 {
+		t.Fatalf("gitignore check after sync code = %d, stdout = %s, stderr = %s", checkAfter.code, checkAfter.stdout, checkAfter.stderr)
+	}
+	syncAgain := runCubby(t, bin, host, "gitignore", "sync")
+	if syncAgain.code != 0 || syncAgain.stdout != "" {
+		t.Fatalf("second gitignore sync code = %d stdout = %q stderr = %s", syncAgain.code, syncAgain.stdout, syncAgain.stderr)
+	}
+}
+
+func TestMultiSourceEmptyHostProfilesRequireExplicitSelectionEndToEnd(t *testing.T) {
+	bin := buildCubby(t)
+	tmp := t.TempDir()
+	host := filepath.Join(tmp, "host")
+	src1 := filepath.Join(tmp, "src1")
+	src2 := filepath.Join(tmp, "src2")
+	mustWrite(t, filepath.Join(src1, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src2, "cubby.toml"), "profiles = [\"personal\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "[[source]]\nname = \"one\"\npath = \""+src1+"\"\n\n[[source]]\nname = \"two\"\npath = \""+src2+"\"\n")
+
+	link := runCubby(t, bin, host, "link")
+	assertFailureContains(t, link, "no profiles selected")
+	unlink := runCubby(t, bin, host, "unlink")
+	assertFailureContains(t, unlink, "no profiles selected")
+}
+
 func TestProfileListEndToEnd(t *testing.T) {
 	bin := buildCubby(t)
 	tmp := t.TempDir()

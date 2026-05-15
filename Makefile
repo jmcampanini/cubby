@@ -1,8 +1,10 @@
 .PHONY: build test fmt lint tidy check clean
 
-BIN ?= cubby
+BUILD_DIR ?= build
+BIN ?= $(BUILD_DIR)/cubby
 
 build:
+	mkdir -p $(dir $(BIN))
 	go build -o $(BIN) .
 
 test:
@@ -24,5 +26,5 @@ tidy:
 check: fmt tidy test lint
 
 clean:
-	rm -f $(BIN)
+	rm -rf $(BUILD_DIR)
 	go clean -testcache
