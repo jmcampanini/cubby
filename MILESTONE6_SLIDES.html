@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cubby Milestone 6 Walkthrough</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1221;
+      --panel: #171b31;
+      --panel-2: #202642;
+      --text: #eef2ff;
+      --muted: #aab3d6;
+      --accent: #8bd5ff;
+      --accent-2: #a6e3a1;
+      --warn: #f9e2af;
+      --danger: #f38ba8;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #243050 0, var(--bg) 45%);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .deck {
+      height: 100vh;
+      width: 100vw;
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .slide {
+      display: none;
+      height: 100%;
+      padding: 6vh 8vw 8vh;
+      overflow: auto;
+    }
+
+    .slide.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fade 160ms ease-out;
+    }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      width: min(1120px, 100%);
+      background: linear-gradient(145deg, rgba(23, 27, 49, 0.96), rgba(32, 38, 66, 0.94));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 28px;
+      box-shadow: 0 26px 80px var(--shadow);
+      padding: clamp(28px, 4vw, 56px);
+    }
+
+    h1, h2, h3 { line-height: 1.05; margin: 0 0 0.55em; }
+    h1 { font-size: clamp(2.4rem, 6vw, 5.5rem); letter-spacing: -0.06em; }
+    h2 { font-size: clamp(2rem, 4vw, 3.6rem); letter-spacing: -0.045em; }
+    h3 { font-size: clamp(1.2rem, 2vw, 1.6rem); color: var(--accent); }
+
+    p, li {
+      font-size: clamp(1.05rem, 1.7vw, 1.45rem);
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    p.lead {
+      font-size: clamp(1.3rem, 2.2vw, 2rem);
+      color: var(--text);
+      max-width: 900px;
+    }
+
+    ul, ol { padding-left: 1.35em; margin: 0.7em 0; }
+    li + li { margin-top: 0.45em; }
+
+    strong { color: var(--text); }
+    code {
+      background: rgba(139, 213, 255, 0.12);
+      color: #cdeeff;
+      padding: 0.08em 0.34em;
+      border-radius: 0.35em;
+      font-size: 0.92em;
+    }
+
+    .kicker {
+      display: inline-block;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      margin-top: 1.3rem;
+    }
+
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .box {
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 20px;
+      padding: 22px;
+    }
+
+    .box p, .box li { font-size: clamp(0.98rem, 1.35vw, 1.16rem); }
+    .box h3 { margin-bottom: 0.35em; }
+
+    .good { color: var(--accent-2); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--danger); }
+    .accent { color: var(--accent); }
+
+    .flow {
+      display: grid;
+      gap: 14px;
+      margin-top: 1rem;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: rgba(139, 213, 255, 0.18);
+      color: var(--accent);
+      font-weight: 900;
+    }
+
+    .step p { margin: 0; }
+
+    .mono-block {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(0.86rem, 1.25vw, 1.05rem);
+      line-height: 1.5;
+      color: #d8e3ff;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 18px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: 14px 22px;
+      background: rgba(8, 10, 20, 0.78);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .controls { display: flex; gap: 10px; }
+    button {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button:hover { background: rgba(255, 255, 255, 0.14); }
+
+    .progress-wrap {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border-radius: inherit;
+      transition: width 120ms ease-out;
+    }
+
+    .counter { color: var(--muted); font-weight: 700; }
+
+    .small { font-size: clamp(0.92rem, 1.2vw, 1.05rem); }
+    .center { text-align: center; }
+
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .deck { min-height: 100vh; height: auto; }
+      .slide { padding: 24px; min-height: calc(100vh - 68px); }
+      .slide.active { align-items: flex-start; }
+      .grid, .grid.three { grid-template-columns: 1fr; }
+      .footer { position: sticky; bottom: 0; grid-template-columns: 1fr; }
+      .controls { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <section class="slide active">
+      <div class="card center">
+        <span class="kicker">Cubby Milestone 6</span>
+        <h1>Status, Doctor, and Prune</h1>
+        <p class="lead">A human-readable walkthrough of what changes, what matters, and where the implementation can get tricky.</p>
+        <p class="small">Use ← / →, Space, Home, End, or the buttons below.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">The story</span>
+        <h2>Milestone 6 makes Cubby explain itself.</h2>
+        <p class="lead">Earlier milestones create and remove profile symlinks. This one adds observability and cleanup.</p>
+        <div class="grid three">
+          <div class="box"><h3>Status</h3><p>What is linked? From which source? Which profile? Is anything drifting?</p></div>
+          <div class="box"><h3>Doctor</h3><p>Is this setup healthy enough to trust? If not, what exactly is wrong?</p></div>
+          <div class="box"><h3>Prune</h3><p>Can Cubby safely remove stale links whose source files are gone?</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Before milestone 6</span>
+        <h2>What you can already do</h2>
+        <ul>
+          <li><strong>Register one or more sources</strong> in host <code>.cubby.toml</code>.</li>
+          <li><strong>List sources and profiles</strong> with <code>source list</code> and <code>profile list</code>.</li>
+          <li><strong>Link/unlink selected profiles</strong> from host defaults, <code>CUBBY_PROFILE</code>, or <code>--profile</code>.</li>
+          <li><strong>Avoid unsafe overwrites</strong> through conflict detection, conflict skipping, and dry-run previews.</li>
+          <li><strong>Protect the public host repo</strong> with <code>gitignore check</code> and <code>gitignore sync</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Before milestone 6</span>
+        <h2>What is still hard today</h2>
+        <div class="grid">
+          <div class="box">
+            <h3 class="warn">No inventory of real state</h3>
+            <p>You can link files, but there is no first-class command to ask: “what links are currently in my host repo?”</p>
+          </div>
+          <div class="box">
+            <h3 class="warn">No stale-link cleanup</h3>
+            <p>If a source file is deleted, the host symlink can dangle until you find and remove it manually.</p>
+          </div>
+          <div class="box">
+            <h3 class="warn">No aggregate health check</h3>
+            <p>Gitignore, conflicts, missing sources, and dangling links are separate concerns. There is no single “is this OK?” command.</p>
+          </div>
+          <div class="box">
+            <h3 class="warn">No drift vocabulary</h3>
+            <p>Links can exist but no longer match the current config, ignore rules, or source profile declarations.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">After milestone 6</span>
+        <h2>What you should expect to do</h2>
+        <div class="mono-block">$ cubby status
+LINKED nvim/init.work.lua [source=work profile=work target=nvim/init.work.lua]
+DRIFT old.work [source=work profile=work target=old.work reason=dangling]
+
+$ cubby doctor
+MISSING_GITIGNORE *.work.*
+DANGLING old.work [source=work]
+CONFLICT nvim/init.work.lua host path already exists
+
+$ cubby prune
+REMOVE old.work</div>
+        <p class="small">Exact wording may differ, but the important property is stable, scriptable, line-oriented output.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Mental model</span>
+        <h2>No active-profile state file</h2>
+        <p class="lead">Cubby does not remember what profiles are “active.” It infers current state by walking the host repo.</p>
+        <div class="flow">
+          <div class="step"><span class="num">1</span><p>Walk the host repo.</p></div>
+          <div class="step"><span class="num">2</span><p>Find symlinks.</p></div>
+          <div class="step"><span class="num">3</span><p>Resolve each symlink target.</p></div>
+          <div class="step"><span class="num">4</span><p>If the target points inside a registered source, classify it as Cubby-managed.</p></div>
+          <div class="step"><span class="num">5</span><p>Infer source, profile, target path, and drift from current config and filesystem state.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">What matters most</span>
+        <h2>The core classification must be trustworthy.</h2>
+        <ul>
+          <li><strong>Managed vs unmanaged</strong>: only symlinks pointing into registered sources are Cubby's responsibility.</li>
+          <li><strong>Dangling but still recognizable</strong>: stale links into a source should still be prunable even when the target no longer exists.</li>
+          <li><strong>Source ownership</strong>: target path maps to the correct registered source.</li>
+          <li><strong>Profile ownership</strong>: profile comes from the existing filename grammar and that source's declarations.</li>
+          <li><strong>Drift reasons</strong>: problems should be explicit, not hidden behind a generic “bad link.”</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Implementation structure</span>
+        <h2>Primary mechanisms being proposed</h2>
+        <div class="grid">
+          <div class="box"><h3>1. Diagnostic project loader</h3><p>Strict loading stays for normal commands; doctor gets a loader that can collect source issues without stopping at the first one.</p></div>
+          <div class="box"><h3>2. Host symlink scanner</h3><p>Walks the host repo, skips <code>.git</code>, classifies symlinks, and returns stable managed-link records.</p></div>
+          <div class="box"><h3>3. Drift classifier</h3><p>Compares existing links to current source config, profile grammar, ignore rules, target existence, and expected path mapping.</p></div>
+          <div class="box"><h3>4. Doctor aggregator</h3><p>Combines gitignore checks, source issues, missing requested profiles, dangling links, drift, and link conflicts.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Strict vs diagnostic loading</span>
+        <h2>This is a key design seam.</h2>
+        <div class="grid">
+          <div class="box">
+            <h3 class="good">Strict loader</h3>
+            <p>Used by commands that need a valid project before doing anything: <code>link</code>, <code>unlink</code>, <code>status</code>, <code>prune</code>, <code>gitignore</code>.</p>
+          </div>
+          <div class="box">
+            <h3 class="accent">Diagnostic loader</h3>
+            <p>Used by <code>doctor</code> so it can say: “source A is missing, source B has missing gitignore patterns, and source C has conflicts.”</p>
+          </div>
+        </div>
+        <p><strong>Human guidance:</strong> care that this seam exists. Do not care too much about the exact function names as long as the behavior is separated.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Managed link record</span>
+        <h2>The scanner should produce facts, not print output.</h2>
+        <div class="mono-block">type ManagedLink struct {
+    HostRelPath   string
+    RawTarget     string
+    TargetPath    string
+    SourceName    string
+    SourceRelPath string
+    Profile       string
+    TargetExists  bool
+    DriftReasons  []string
+}</div>
+        <p>The command layer can then render these facts as <code>status</code>, use them for <code>prune</code>, or aggregate them in <code>doctor</code>.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Status</span>
+        <h2>Think of <code>status</code> as read-only inventory.</h2>
+        <ul>
+          <li>It loads a valid project.</li>
+          <li>It discovers managed host symlinks.</li>
+          <li>It reports source, profile, target, and drift.</li>
+          <li>It should exit zero if it successfully reports state, even if the state contains drift.</li>
+        </ul>
+        <p><strong>Human focus:</strong> the output must answer “what is this link and should I trust it?”</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Prune</span>
+        <h2>Think of <code>prune</code> as the smallest safe mutation.</h2>
+        <div class="grid">
+          <div class="box">
+            <h3 class="good">Remove</h3>
+            <p>Only dangling symlinks whose target path is inside a registered source.</p>
+          </div>
+          <div class="box">
+            <h3 class="bad">Never remove</h3>
+            <p>Valid managed links, unmanaged symlinks, regular files, directories, or parent directories.</p>
+          </div>
+        </div>
+        <p><strong>Human focus:</strong> pruning safety matters more than pruning convenience.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Doctor</span>
+        <h2>Think of <code>doctor</code> as an aggregate health report.</h2>
+        <ul>
+          <li><code>MISSING_SOURCE</code>: a registered source path/config is broken.</li>
+          <li><code>MISSING_GITIGNORE</code>: required public-safety patterns are absent.</li>
+          <li><code>MISSING_PROFILE</code>: host default profile is declared by no valid source.</li>
+          <li><code>DANGLING</code>: managed symlink target no longer exists.</li>
+          <li><code>DRIFT</code>: managed link no longer agrees with current source/config rules.</li>
+          <li><code>CONFLICT</code>: a future link for requested profiles would hit a conflict.</li>
+        </ul>
+        <p><strong>Exit code:</strong> zero only when no issues are found.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">What to care about</span>
+        <h2>Review priorities as a human</h2>
+        <ol>
+          <li><strong>Safety boundaries:</strong> commands must not mutate unrelated host files.</li>
+          <li><strong>Reusable classification:</strong> status, prune, and doctor should share the same managed-link discovery logic.</li>
+          <li><strong>Stable diagnostics:</strong> predictable prefixes and ordering are better than fancy formatting.</li>
+          <li><strong>No hidden state:</strong> all answers come from config + filesystem.</li>
+          <li><strong>Failure timing:</strong> mutating commands should fail before mutation if the project cannot be trusted.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">What not to over-focus on</span>
+        <h2>Details that matter less initially</h2>
+        <ul>
+          <li>Exact visual styling, as long as output remains scriptable.</li>
+          <li>Whether the scanner package is named <code>hostlinks</code>, <code>state</code>, or something else.</li>
+          <li>Perfectly rich prose in diagnostics. Stable issue type + path + reason is enough.</li>
+          <li>Interactive remediation. Milestone 6 reports and prunes; it does not need a wizard.</li>
+          <li>Cleaning empty parent directories after prune. The plan explicitly avoids that.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Trouble areas</span>
+        <h2>Watch these after the code is implemented</h2>
+        <div class="grid">
+          <div class="box"><h3 class="warn">Dangling symlink resolution</h3><p><code>EvalSymlinks</code> fails for missing targets. The scanner still needs the cleaned absolute lexical target.</p></div>
+          <div class="box"><h3 class="warn">Inside-root checks</h3><p>Use safe relative-path checks. String prefix checks can confuse <code>/src</code> with <code>/src-old</code>.</p></div>
+          <div class="box"><h3 class="warn">Overlapping source roots</h3><p>If one source root is inside another, pick the most-specific matching source.</p></div>
+          <div class="box"><h3 class="warn">Source roots inside host</h3><p>The host walk should not recurse into registered source roots and classify source-internal symlinks as host state.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">More trouble areas</span>
+        <h2>Subtle correctness checks</h2>
+        <ul>
+          <li><strong>Ignore rules:</strong> status/doctor drift must reuse the same ignore semantics as profile discovery.</li>
+          <li><strong>Profile grammar:</strong> keep using exact dot-segment matching; do not introduce fuzzy profile matching.</li>
+          <li><strong>Path normalization:</strong> filesystem paths use OS separators; ignore patterns and output often want slash-normalized paths.</li>
+          <li><strong>Deterministic ordering:</strong> tests and scripts should not depend on walk-order accidents.</li>
+          <li><strong>Case sensitivity:</strong> doctor conflict checks should respect the existing host <code>case_sensitive</code> behavior.</li>
+          <li><strong>No mutation in doctor/status:</strong> only prune should remove files.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Doctor conflict checks</span>
+        <h2>Reuse the link planner; do not reimplement conflicts.</h2>
+        <p class="lead">The plan proposes using existing profile discovery plus <code>linkops.PlanLink</code> for conflicts.</p>
+        <div class="flow">
+          <div class="step"><span class="num">1</span><p>Take host top-level requested profiles, if any.</p></div>
+          <div class="step"><span class="num">2</span><p>Discover source files for valid selected profiles.</p></div>
+          <div class="step"><span class="num">3</span><p>Run the non-mutating link planner.</p></div>
+          <div class="step"><span class="num">4</span><p>Report planned fatal conflicts as doctor issues.</p></div>
+        </div>
+        <p><strong>Human focus:</strong> conflict behavior should stay identical between <code>link --dry-run</code> and <code>doctor</code>.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">Testing shape</span>
+        <h2>The tests should prove behavior vertically.</h2>
+        <div class="grid">
+          <div class="box">
+            <h3>Unit tests</h3>
+            <p>Scanner classification, source ownership, profile inference, dangling recognition, ignore-rule drift, path mismatch.</p>
+          </div>
+          <div class="box">
+            <h3>End-to-end tests</h3>
+            <p>Real host/source repos, real symlinks, status output, doctor exit codes, and prune non-destructive cleanup.</p>
+          </div>
+        </div>
+        <p><strong>Best signal:</strong> one test should prove unmanaged symlinks survive prune.</p>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card">
+        <span class="kicker">How to review the final code</span>
+        <h2>A practical checklist</h2>
+        <ul>
+          <li>Can I explain the scanner's classification rules without reading command code?</li>
+          <li>Do <code>status</code>, <code>doctor</code>, and <code>prune</code> share that scanner?</li>
+          <li>Can <code>doctor</code> report more than one problem at a time?</li>
+          <li>Can a dangling managed link still be identified as managed?</li>
+          <li>Does <code>prune</code> have a tiny mutation surface?</li>
+          <li>Are diagnostics stable enough for tests and shell scripts?</li>
+          <li>Do existing milestones still pass unchanged?</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="card center">
+        <span class="kicker">Bottom line</span>
+        <h2>The important idea</h2>
+        <p class="lead">Milestone 6 is less about adding three commands and more about adding a reliable model of current host state.</p>
+        <p>Once that model is trustworthy, <code>status</code> is rendering, <code>prune</code> is one safe mutation, and <code>doctor</code> is aggregation.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="controls">
+        <button type="button" id="prev" aria-label="Previous slide">← Prev</button>
+        <button type="button" id="next" aria-label="Next slide">Next →</button>
+      </div>
+      <div class="progress-wrap" aria-hidden="true"><div class="progress" id="progress"></div></div>
+      <div class="counter" id="counter"></div>
+    </footer>
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    let index = 0;
+
+    function readHash() {
+      const match = location.hash.match(/^#\/(\d+)$/);
+      if (!match) return 0;
+      const requested = Number(match[1]) - 1;
+      return Math.max(0, Math.min(slides.length - 1, requested));
+    }
+
+    function show(nextIndex, updateHash = true) {
+      index = Math.max(0, Math.min(slides.length - 1, nextIndex));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+      counter.textContent = `${index + 1} / ${slides.length}`;
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      prev.disabled = index === 0;
+      next.disabled = index === slides.length - 1;
+      if (updateHash) history.replaceState(null, '', `#/${index + 1}`);
+    }
+
+    prev.addEventListener('click', () => show(index - 1));
+    next.addEventListener('click', () => show(index + 1));
+
+    document.addEventListener('keydown', (event) => {
+      if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'PageDown':
+        case ' ':
+          event.preventDefault();
+          show(index + 1);
+          break;
+        case 'ArrowLeft':
+        case 'PageUp':
+          event.preventDefault();
+          show(index - 1);
+          break;
+        case 'Home':
+          event.preventDefault();
+          show(0);
+          break;
+        case 'End':
+          event.preventDefault();
+          show(slides.length - 1);
+          break;
+      }
+    });
+
+    window.addEventListener('hashchange', () => show(readHash(), false));
+    show(readHash(), false);
+  </script>
+</body>
+</html>
