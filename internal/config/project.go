@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	configloader "github.com/jmcampanini/go-config-loader"
 )
+
+var validSourceName = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // RegisteredSource is a host source entry after path resolution and source config loading.
 type RegisteredSource struct {
@@ -87,6 +90,9 @@ func LoadProjectWithHostConfig(hostRoot string, hostCfg HostConfig) (*Project, e
 	if len(hostCfg.Sources) == 0 {
 		return nil, fmt.Errorf("host config %q has no [[source]] entries", hostFile)
 	}
+	if err := validateHostSources(hostCfg.Sources); err != nil {
+		return nil, err
+	}
 
 	project := &Project{
 		HostRoot: hostRoot,
@@ -125,12 +131,26 @@ func (p *Project) DeclaredProfiles() []string {
 	return profiles
 }
 
-func loadRegisteredSource(hostRoot string, index int, source HostSource) (RegisteredSource, error) {
-	name := source.Name
-	if strings.TrimSpace(name) == "" {
-		name = fmt.Sprintf("#%d", index+1)
+func validateHostSources(sources []HostSource) error {
+	seen := make(map[string]struct{}, len(sources))
+	for i, source := range sources {
+		name := source.Name
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("source entry %d is missing name (source name required)", i+1)
+		}
+		if !validSourceName.MatchString(name) {
+			return fmt.Errorf("source name %q is invalid; must match %s", name, validSourceName.String())
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("duplicate source name %q", name)
+		}
+		seen[name] = struct{}{}
 	}
-	source.Name = name
+	return nil
+}
+
+func loadRegisteredSource(hostRoot string, _ int, source HostSource) (RegisteredSource, error) {
+	name := source.Name
 	if strings.TrimSpace(source.Path) == "" {
 		return RegisteredSource{}, fmt.Errorf("source %q is missing path", name)
 	}

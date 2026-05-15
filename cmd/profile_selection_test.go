@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,6 +116,24 @@ func TestValidateSelectedProfilesRejectsUnknownBeforeSideEffects(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ghost") || !strings.Contains(err.Error(), "not declared") {
 		t.Fatalf("validateSelectedProfiles() error = %q, want unknown profile guidance", err)
+	}
+}
+
+func TestRenderMissingProfileDiagnosticsReportsPerSourceMissingProfiles(t *testing.T) {
+	project := &config.Project{Sources: []config.RegisteredSource{
+		{HostSource: config.HostSource{Name: "personal"}, Config: config.SourceConfig{Profiles: []string{"personal"}}},
+		{HostSource: config.HostSource{Name: "work"}, Config: config.SourceConfig{Profiles: []string{"work"}}},
+	}}
+	var stderr bytes.Buffer
+	cmd := NewRootCommand(&bytes.Buffer{}, &stderr)
+
+	if err := renderMissingProfileDiagnostics(cmd, project, []string{"work", "personal"}); err != nil {
+		t.Fatalf("renderMissingProfileDiagnostics() error = %v", err)
+	}
+	want := "source \"personal\" does not declare selected profile \"work\"; skipping\n" +
+		"source \"work\" does not declare selected profile \"personal\"; skipping\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }
 

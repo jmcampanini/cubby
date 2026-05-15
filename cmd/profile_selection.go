@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -79,6 +81,32 @@ func validateSelectedProfiles(project *config.Project, profiles []string) error 
 		return fmt.Errorf("selected profiles %s are not declared by any registered source", quotedList(unknown))
 	}
 	return nil
+}
+
+func renderMissingProfileDiagnostics(cmd *cobra.Command, project *config.Project, profiles []string) error {
+	profiles = config.NormalizeProfiles(profiles)
+	for _, source := range project.Sources {
+		allowed := make(map[string]struct{}, len(source.Config.Profiles))
+		for _, profile := range config.NormalizeProfiles(source.Config.Profiles) {
+			allowed[profile] = struct{}{}
+		}
+		for _, profile := range profiles {
+			if _, ok := allowed[profile]; ok {
+				continue
+			}
+			if _, err := fmt.Fprintf(commandErr(cmd), "source %q does not declare selected profile %q; skipping\n", source.Name, profile); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func commandErr(cmd *cobra.Command) io.Writer {
+	if cmd == nil {
+		return os.Stderr
+	}
+	return cmd.ErrOrStderr()
 }
 
 func sourceSelectedProfiles(source config.RegisteredSource, selected []string) []string {

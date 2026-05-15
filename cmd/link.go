@@ -41,6 +41,9 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 	if err := validateSelectedProfiles(project, profiles); err != nil {
 		return err
 	}
+	if err := renderMissingProfileDiagnostics(cmd, project, profiles); err != nil {
+		return err
+	}
 
 	discovered, err := discoverProfileFiles(project, profiles)
 	if err != nil {

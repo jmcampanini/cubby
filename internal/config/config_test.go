@@ -104,6 +104,43 @@ func TestLoadProjectRejectsOldPerSourceHostProfiles(t *testing.T) {
 	}
 }
 
+func TestLoadProjectRejectsMissingBlankInvalidAndDuplicateSourceNames(t *testing.T) {
+	tests := []struct {
+		name       string
+		sourceTOML string
+		want       string
+	}{
+		{name: "missing", sourceTOML: "path = \"../src\"", want: "missing name"},
+		{name: "blank", sourceTOML: "name = \"   \"\npath = \"../src\"", want: "missing name"},
+		{name: "space", sourceTOML: "name = \"bad name\"\npath = \"../src\"", want: "invalid"},
+		{name: "dot", sourceTOML: "name = \"bad.name\"\npath = \"../src\"", want: "invalid"},
+		{name: "slash", sourceTOML: "name = \"bad/name\"\npath = \"../src\"", want: "invalid"},
+		{name: "punctuation", sourceTOML: "name = \"bad!name\"\npath = \"../src\"", want: "invalid"},
+		{name: "duplicate", sourceTOML: "name = \"one\"\npath = \"../src\"\n\n[[source]]\nname = \"one\"\npath = \"../src\"", want: "duplicate source name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			host := filepath.Join(tmp, "host")
+			src := filepath.Join(tmp, "src")
+			mustMkdir(t, host)
+			mustMkdir(t, src)
+			mustWrite(t, filepath.Join(src, SourceConfigFileName), "profiles = [\"work\"]\n")
+			mustWrite(t, filepath.Join(host, HostConfigFileName), "[[source]]\n"+tt.sourceTOML+"\n")
+			mustChdir(t, host)
+
+			_, err := LoadProject()
+			if err == nil {
+				t.Fatalf("LoadProject() error = nil, want %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("LoadProject() error = %q, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadProjectRequiresHostConfigInCurrentDirectory(t *testing.T) {
 	tmp := t.TempDir()
 	host := filepath.Join(tmp, "host")
