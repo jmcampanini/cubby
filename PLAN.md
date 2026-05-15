@@ -277,7 +277,7 @@ are detected, reported, and never resolved by deleting user files.
 - Dry-run mode reports the same planned work/conflicts without creating or
   removing links.
 
-## Milestone 5: Multi-Source Inventory Slice
+## [x] Milestone 5: Multi-Source Inventory Slice
 
 **Outcome:** The core link/unlink/gitignore flow works across multiple
 registered sources, and source inventory commands are useful.
