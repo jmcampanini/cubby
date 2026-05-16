@@ -20,30 +20,10 @@ func addProfileFlag(cmd *cobra.Command) {
 }
 
 func loadProfileScopedProject(cmd *cobra.Command) (*config.Project, []string, error) {
-	hostRoot, err := config.CurrentHostRoot()
+	hostRoot, hostCfg, err := loadEffectiveHostConfig(cmd)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	hostFile := filepath.Join(hostRoot, config.HostConfigFileName)
-	fileLoader, err := configloader.NewRequiredFileLoader[config.HostConfig](hostFile)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create host config loader for %q: %w", hostFile, err)
-	}
-	envLoader, err := configloader.NewEnvironmentLoader[config.HostConfig]("cubby", configloader.OSEnv())
-	if err != nil {
-		return nil, nil, err
-	}
-	flagLoader, err := pflagloader.NewLoader[config.HostConfig](cmd.Flags())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	hostCfg, _, err := configloader.Load(config.DefaultHostConfig, fileLoader, envLoader, flagLoader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("load host config %q: %w", hostFile, err)
-	}
-	hostCfg = config.NormalizeHostConfig(hostCfg)
 
 	project, err := config.LoadProjectWithHostConfig(hostRoot, hostCfg)
 	if err != nil {
@@ -55,6 +35,33 @@ func loadProfileScopedProject(cmd *cobra.Command) (*config.Project, []string, er
 		return nil, nil, err
 	}
 	return project, profiles, nil
+}
+
+func loadEffectiveHostConfig(cmd *cobra.Command) (string, config.HostConfig, error) {
+	hostRoot, err := config.CurrentHostRoot()
+	if err != nil {
+		return "", config.HostConfig{}, err
+	}
+
+	hostFile := filepath.Join(hostRoot, config.HostConfigFileName)
+	fileLoader, err := configloader.NewRequiredFileLoader[config.HostConfig](hostFile)
+	if err != nil {
+		return "", config.HostConfig{}, fmt.Errorf("create host config loader for %q: %w", hostFile, err)
+	}
+	envLoader, err := configloader.NewEnvironmentLoader[config.HostConfig]("cubby", configloader.OSEnv())
+	if err != nil {
+		return "", config.HostConfig{}, err
+	}
+	flagLoader, err := pflagloader.NewLoader[config.HostConfig](cmd.Flags())
+	if err != nil {
+		return "", config.HostConfig{}, err
+	}
+
+	hostCfg, _, err := configloader.Load(config.DefaultHostConfig, fileLoader, envLoader, flagLoader)
+	if err != nil {
+		return "", config.HostConfig{}, fmt.Errorf("load host config %q: %w", hostFile, err)
+	}
+	return hostRoot, config.NormalizeHostConfig(hostCfg), nil
 }
 
 func validateSelectedProfiles(project *config.Project, profiles []string) error {

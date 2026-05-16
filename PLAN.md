@@ -310,7 +310,7 @@ registered sources, and source inventory commands are useful.
   blocking unrelated link work when another source provides the selected
   profile.
 
-## Milestone 6: Status, Doctor, and Prune Slice
+## [x] Milestone 6: Status, Doctor, and Prune Slice
 
 **Outcome:** `cubby` can explain and clean the state it created, without using
 an active-profile state file.

@@ -82,6 +82,16 @@ func Discover(root string, declaredProfiles, selectedProfiles, ignore []string) 
 	return files, nil
 }
 
+// Ignored reports whether relPath is excluded by ignore rules.
+func Ignored(relPath string, ignore []string) (bool, error) {
+	ignoreRules, err := compileIgnoreRules(ignore)
+	if err != nil {
+		return false, err
+	}
+	relSlash := filepath.ToSlash(filepath.Clean(relPath))
+	return ignoredByAny(ignoreRules, relSlash, filepath.Base(relPath))
+}
+
 // MatchBasename reports whether base contains profile as an exact dot segment.
 func MatchBasename(base, profile string) bool {
 	profile = strings.TrimSpace(profile)
