@@ -338,7 +338,7 @@ an active-profile state file.
 - `prune` removes dangling managed symlinks.
 - `prune` leaves valid symlinks and unmanaged symlinks untouched.
 
-## Milestone 7: Source-Scoped Lazygit Slice
+## [x] Milestone 7: Source-Scoped Lazygit Slice
 
 **Outcome:** Source-scoped command selection is proven through
 `cubby lazygit`.
