@@ -11,6 +11,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "cubby",
 		Short:         "Layer profile-scoped dotfiles into a host repo",
+		Version:       Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -18,6 +18,7 @@ func linkCommand() *cobra.Command {
 	}
 	addProfileFlag(cmd)
 	cmd.Flags().Bool("dry-run", false, "preview planned link actions without modifying files")
+	cmd.Flags().Bool("json", false, "print link plan as JSON")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		project, profiles, err := loadProfileScopedProject(cmd)
 		if err != nil {
@@ -27,13 +28,18 @@ func linkCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return linkProfilesWithOptions(cmd, project, profiles, linkRunOptions{DryRun: dryRun})
+		jsonOutput, err := jsonOutputEnabled(cmd)
+		if err != nil {
+			return err
+		}
+		return linkProfilesWithOptions(cmd, project, profiles, linkRunOptions{DryRun: dryRun, JSON: jsonOutput})
 	}
 	return cmd
 }
 
 type linkRunOptions struct {
 	DryRun bool
+	JSON   bool
 }
 
 func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profiles []string, opts linkRunOptions) error {
@@ -58,6 +64,21 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 	}
 
 	out := commandOut(cmd)
+	if opts.JSON {
+		if plan.HasFatalConflicts() {
+			if err := writeCommandJSON(cmd, linkActionsEnvelope(opts.DryRun, plan.Actions)); err != nil {
+				return err
+			}
+			return &ExitError{Code: 1}
+		}
+		if !opts.DryRun {
+			if err := linkops.ApplyLink(plan); err != nil {
+				return err
+			}
+		}
+		return writeCommandJSON(cmd, linkActionsEnvelope(opts.DryRun, plan.Actions))
+	}
+
 	if opts.DryRun {
 		if err := linkops.RenderActions(out, plan.Actions); err != nil {
 			return err

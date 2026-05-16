@@ -10,8 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type pruneEnvelope struct {
+	Removed []pruneRemoved `json:"removed"`
+}
+
+type pruneRemoved struct {
+	Path   string `json:"path"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
 func pruneCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Remove dangling Cubby symlinks",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -26,6 +36,11 @@ func pruneCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			jsonOutput, err := jsonOutputEnabled(cmd)
+			if err != nil {
+				return err
+			}
+			removed := make([]pruneRemoved, 0)
 			for _, link := range links {
 				if link.TargetExists {
 					continue
@@ -33,13 +48,26 @@ func pruneCommand() *cobra.Command {
 				if err := os.Remove(link.HostPath); err != nil {
 					return err
 				}
-				if _, err := fmt.Fprintln(commandOut(cmd), filepath.ToSlash(link.HostRelPath)); err != nil {
-					return err
+				item := pruneRemoved{
+					Path:   slashPath(link.HostRelPath),
+					Source: link.SourceName,
+					Target: slashPath(link.SourceRelPath),
 				}
+				removed = append(removed, item)
+				if !jsonOutput {
+					if _, err := fmt.Fprintln(commandOut(cmd), filepath.ToSlash(link.HostRelPath)); err != nil {
+						return err
+					}
+				}
+			}
+			if jsonOutput {
+				return writeCommandJSON(cmd, pruneEnvelope{Removed: removed})
 			}
 			return nil
 		},
 	}
+	cmd.Flags().Bool("json", false, "print prune results as JSON")
+	return cmd
 }
 
 func validatePruneSourceIssues(issues []config.SourceIssue) error {

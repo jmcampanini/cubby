@@ -16,7 +16,7 @@ func TestSourceListJSONPrintsRegisteredSourcesInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("source list --json error = %v, stderr = %s", err, errOut)
 	}
-	want := `[{"name":"one","path":"` + resolvedPath(t, src1) + `","profiles":["work","personal"]},{"name":"two","path":"` + resolvedPath(t, src2) + `","profiles":["client"]}]` + "\n"
+	want := `{"sources":[{"name":"one","path":"` + filepath.ToSlash(resolvedPath(t, src1)) + `","profiles":["work","personal"]},{"name":"two","path":"` + filepath.ToSlash(resolvedPath(t, src2)) + `","profiles":["client"]}]}` + "\n"
 	if out != want {
 		t.Fatalf("source list --json output = %q, want %q", out, want)
 	}
