@@ -103,6 +103,31 @@ func TestDiscoverDiagnosticsClassifiesDanglingLinksUnderMissingSourceRoots(t *te
 	assertReason(t, links[0], ReasonDangling)
 }
 
+func TestDiscoverSkipsRegisteredSourceSymlinkRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	realSrc := filepath.Join(root, "real-src")
+	hostSourceLink := filepath.Join(host, "src")
+	mustWriteHostlinks(t, filepath.Join(realSrc, "file.work"), "work\n")
+	if err := os.MkdirAll(host, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", host, err)
+	}
+	if err := os.Symlink(realSrc, hostSourceLink); err != nil {
+		t.Fatalf("Symlink(%q, %q) error = %v", realSrc, hostSourceLink, err)
+	}
+
+	links, err := Discover(host, []config.RegisteredSource{testSource("src", hostSourceLink, []string{"work"}, nil)})
+	if err != nil {
+		t.Fatalf("Discover error = %v", err)
+	}
+	if len(links) != 0 {
+		t.Fatalf("links = %#v, want registered source symlink root skipped", links)
+	}
+}
+
 func TestDiscoverPrefersMostSpecificSourceRoot(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink privileges vary on Windows")

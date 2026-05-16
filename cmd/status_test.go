@@ -150,6 +150,46 @@ func TestDoctorReportsHealthyAndUnhealthySetups(t *testing.T) {
 	})
 }
 
+func TestDoctorReportsInvalidSourceIgnorePattern(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\nignore = [\"[\"]\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \"../src\"\n")
+	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+	mustChdir(t, host)
+
+	out, _, err := executeForTest("doctor")
+	if err == nil {
+		t.Fatalf("doctor error = nil, output = %s", out)
+	}
+	for _, want := range []string{"MISSING_SOURCE src", "invalid ignore pattern"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("doctor output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestDoctorReportsConflictsWhenHostIgnoresConflicts(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(src, "conflict.work"), "source\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\nignore_conflicts = true\n\n[[source]]\nname = \"src\"\npath = \"../src\"\n")
+	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host\n")
+	mustChdir(t, host)
+
+	out, _, err := executeForTest("doctor")
+	if err == nil {
+		t.Fatalf("doctor error = nil, output = %s", out)
+	}
+	if !strings.Contains(out, "CONFLICT conflict.work") {
+		t.Fatalf("doctor output = %q, want conflict despite ignore_conflicts", out)
+	}
+}
+
 func TestDoctorUsesEffectiveProfileSelectionFromEnvAndFlags(t *testing.T) {
 	root := t.TempDir()
 	host := filepath.Join(root, "host")

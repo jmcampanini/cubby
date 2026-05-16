@@ -1,6 +1,12 @@
 package config
 
-import "strings"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
+)
 
 const (
 	HostConfigFileName   = ".cubby.toml"
@@ -43,6 +49,24 @@ func NormalizeHostConfig(cfg HostConfig) HostConfig {
 func NormalizeSourceConfig(cfg SourceConfig) SourceConfig {
 	cfg.Profiles = NormalizeProfiles(cfg.Profiles)
 	return cfg
+}
+
+// ValidateSourceConfig normalizes and validates one source config.
+func ValidateSourceConfig(sourceName string, cfg SourceConfig) (SourceConfig, error) {
+	cfg = NormalizeSourceConfig(cfg)
+	if len(cfg.Profiles) == 0 {
+		return SourceConfig{}, fmt.Errorf("source %q declares no profiles", sourceName)
+	}
+	for _, raw := range cfg.Ignore {
+		pattern := filepath.ToSlash(strings.TrimSpace(raw))
+		if pattern == "" {
+			continue
+		}
+		if !doublestar.ValidatePattern(pattern) {
+			return SourceConfig{}, fmt.Errorf("source %q has invalid ignore pattern %q", sourceName, raw)
+		}
+	}
+	return cfg, nil
 }
 
 // NormalizeProfiles trims whitespace, drops empty entries, and deduplicates while preserving first-seen order.

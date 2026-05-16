@@ -122,9 +122,9 @@ func loadRegisteredSourceDiagnostic(hostRoot string, order int, source HostSourc
 	if err != nil {
 		return RegisteredSource{}, root, &SourceIssue{Name: name, Path: resolvedPath, Kind: "invalid_config", Err: fmt.Errorf("load source config for source %q at %q: %w", name, sourceFile, err)}
 	}
-	sourceCfg = NormalizeSourceConfig(sourceCfg)
-	if len(sourceCfg.Profiles) == 0 {
-		return RegisteredSource{}, root, &SourceIssue{Name: name, Path: resolvedPath, Kind: "no_profiles", Err: fmt.Errorf("source %q declares no profiles", name)}
+	sourceCfg, err = ValidateSourceConfig(name, sourceCfg)
+	if err != nil {
+		return RegisteredSource{}, root, &SourceIssue{Name: name, Path: resolvedPath, Kind: "invalid_config", Err: err}
 	}
 
 	return RegisteredSource{HostSource: source, ResolvedPath: resolvedPath, Config: sourceCfg}, root, nil

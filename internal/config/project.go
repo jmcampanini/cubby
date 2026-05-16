@@ -175,9 +175,9 @@ func loadRegisteredSource(hostRoot string, _ int, source HostSource) (Registered
 	if err != nil {
 		return RegisteredSource{}, fmt.Errorf("load source config for source %q at %q: %w", name, sourceFile, err)
 	}
-	sourceCfg = NormalizeSourceConfig(sourceCfg)
-	if len(sourceCfg.Profiles) == 0 {
-		return RegisteredSource{}, fmt.Errorf("source %q declares no profiles", name)
+	sourceCfg, err = ValidateSourceConfig(name, sourceCfg)
+	if err != nil {
+		return RegisteredSource{}, err
 	}
 
 	return RegisteredSource{

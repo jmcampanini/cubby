@@ -63,11 +63,14 @@ func discover(hostRoot string, roots []sourceRoot) ([]ManagedLink, error) {
 			return walkErr
 		}
 		path = filepath.Clean(path)
-		if d.IsDir() {
-			if d.Name() == ".git" && path != hostRoot {
+		if path != hostRoot && isRegisteredSourceDir(path, roots) {
+			if d.IsDir() {
 				return filepath.SkipDir
 			}
-			if path != hostRoot && isRegisteredSourceDir(path, roots) {
+			return nil
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" && path != hostRoot {
 				return filepath.SkipDir
 			}
 			return nil

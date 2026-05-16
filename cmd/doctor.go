@@ -102,7 +102,7 @@ func runDoctor(cmd *cobra.Command, diagnostic *config.DiagnosticProject) (bool, 
 			return false, err
 		}
 		plan, err := linkops.PlanLink(diagnostic.HostRoot, linkSources(discovered), linkops.PlanOptions{
-			IgnoreConflicts: diagnostic.Host.IgnoreConflicts,
+			IgnoreConflicts: false,
 			CaseSensitive:   diagnostic.Host.CaseSensitive,
 		})
 		if err != nil {
