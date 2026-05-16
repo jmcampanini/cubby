@@ -76,6 +76,38 @@ func TestDiscoverDetectsDanglingDriftProfileAndIgnore(t *testing.T) {
 	assertReason(t, byRel["ignored.work"], ReasonIgnored)
 }
 
+func TestDiscoverDetectsUnresolvedAndNonRegularTargets(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", src, err)
+	}
+	if err := os.Symlink("loop.work", filepath.Join(src, "loop.work")); err != nil {
+		t.Fatalf("Symlink(loop.work) error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(src, "dir.work"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(dir.work) error = %v", err)
+	}
+	sources := []config.RegisteredSource{testSource("src", src, []string{"work"}, nil)}
+	mustSymlinkHostlinks(t, filepath.Join(host, "loop.work"), filepath.Join(src, "loop.work"))
+	mustSymlinkHostlinks(t, filepath.Join(host, "dir.work"), filepath.Join(src, "dir.work"))
+
+	links, err := Discover(host, sources)
+	if err != nil {
+		t.Fatalf("Discover error = %v", err)
+	}
+	byRel := map[string]ManagedLink{}
+	for _, link := range links {
+		byRel[link.HostRelPath] = link
+	}
+	assertReason(t, byRel["loop.work"], ReasonUnresolved)
+	assertReason(t, byRel["dir.work"], ReasonNonRegular)
+}
+
 func TestDiscoverDiagnosticsClassifiesDanglingLinksUnderMissingSourceRoots(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink privileges vary on Windows")

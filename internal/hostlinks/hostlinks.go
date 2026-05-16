@@ -15,6 +15,8 @@ const (
 	ReasonPathMismatch = "path mismatch"
 	ReasonUnknown      = "unknown profile"
 	ReasonIgnored      = "ignored"
+	ReasonUnresolved   = "unresolved target"
+	ReasonNonRegular   = "non-regular target"
 )
 
 // ManagedLink is a symlink in the host repo whose target belongs to a registered source.
@@ -153,6 +155,44 @@ func rootKey(name, root string) string {
 	return name + "\x00" + filepath.Clean(root)
 }
 
+type targetInfo struct {
+	MatchPath  string
+	Exists     bool
+	Resolved   bool
+	Unresolved bool
+	NonRegular bool
+}
+
+func inspectTarget(targetPath string) (targetInfo, error) {
+	info := targetInfo{MatchPath: targetPath, Exists: true, Resolved: true}
+	resolved, err := filepath.EvalSymlinks(targetPath)
+	if err != nil {
+		info.MatchPath = targetPath
+		info.Resolved = false
+		if os.IsNotExist(err) {
+			info.Exists = false
+			return info, nil
+		}
+		info.Unresolved = true
+		return info, nil
+	}
+
+	info.MatchPath = filepath.Clean(resolved)
+	stat, err := os.Stat(info.MatchPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			info.Exists = false
+			info.Resolved = false
+			return info, nil
+		}
+		return targetInfo{}, err
+	}
+	if !stat.Mode().IsRegular() {
+		info.NonRegular = true
+	}
+	return info, nil
+}
+
 func classify(hostRoot, hostPath string, roots []sourceRoot) (ManagedLink, bool, error) {
 	rawTarget, err := os.Readlink(hostPath)
 	if err != nil {
@@ -164,24 +204,16 @@ func classify(hostRoot, hostPath string, roots []sourceRoot) (ManagedLink, bool,
 	}
 	targetPath = filepath.Clean(targetPath)
 
-	targetExists := true
-	matchTarget := targetPath
-	if resolved, err := filepath.EvalSymlinks(targetPath); err == nil {
-		matchTarget = filepath.Clean(resolved)
-	} else if os.IsNotExist(err) {
-		targetExists = false
-	} else {
-		// Broken intermediate components and permission errors are still treated lexically.
-		if _, statErr := os.Stat(targetPath); os.IsNotExist(statErr) {
-			targetExists = false
-		}
+	targetInfo, err := inspectTarget(targetPath)
+	if err != nil {
+		return ManagedLink{}, false, err
 	}
 
-	owner, ok := owningSource(matchTarget, roots, targetExists)
+	owner, ok := owningSource(targetInfo.MatchPath, roots, targetInfo.Resolved)
 	if !ok {
 		return ManagedLink{}, false, nil
 	}
-	sourceRel, err := filepath.Rel(owner.matchRoot, matchTarget)
+	sourceRel, err := filepath.Rel(owner.matchRoot, targetInfo.MatchPath)
 	if err != nil {
 		return ManagedLink{}, false, err
 	}
@@ -194,19 +226,25 @@ func classify(hostRoot, hostPath string, roots []sourceRoot) (ManagedLink, bool,
 		HostPath:      hostPath,
 		HostRelPath:   filepath.Clean(hostRel),
 		RawTarget:     rawTarget,
-		TargetPath:    matchTarget,
+		TargetPath:    targetInfo.MatchPath,
 		SourceName:    owner.name,
 		SourceRoot:    owner.root,
 		SourceRelPath: filepath.Clean(sourceRel),
-		TargetExists:  targetExists,
+		TargetExists:  targetInfo.Exists,
 		DriftReasons:  nil,
 	}
 	if owner.hasConfig {
 		link.Profile = inferProfile(filepath.Base(link.SourceRelPath), owner.config.Profiles)
 	}
 
-	if !targetExists {
+	if !targetInfo.Exists {
 		link.DriftReasons = append(link.DriftReasons, ReasonDangling)
+	}
+	if targetInfo.Unresolved {
+		link.DriftReasons = append(link.DriftReasons, ReasonUnresolved)
+	}
+	if targetInfo.NonRegular {
+		link.DriftReasons = append(link.DriftReasons, ReasonNonRegular)
 	}
 	if filepath.Clean(link.HostRelPath) != filepath.Clean(link.SourceRelPath) {
 		link.DriftReasons = append(link.DriftReasons, ReasonPathMismatch)
@@ -227,16 +265,16 @@ func classify(hostRoot, hostPath string, roots []sourceRoot) (ManagedLink, bool,
 	return link, true, nil
 }
 
-func owningSource(target string, roots []sourceRoot, targetExists bool) (sourceRoot, bool) {
+func owningSource(target string, roots []sourceRoot, targetResolved bool) (sourceRoot, bool) {
 	var best sourceRoot
 	bestLen := -1
 	ok := false
 	for _, root := range roots {
-		if targetExists && !root.hasConfig {
+		if targetResolved && !root.hasConfig {
 			continue
 		}
 		matchRoot := root.matchRoot
-		if !targetExists {
+		if !targetResolved {
 			matchRoot = root.root
 		}
 		if !insideRoot(matchRoot, target) {
@@ -245,7 +283,7 @@ func owningSource(target string, roots []sourceRoot, targetExists bool) (sourceR
 		rootLen := len(splitPath(matchRoot))
 		if !ok || rootLen > bestLen || (rootLen == bestLen && root.order < best.order) {
 			best = root
-			if !targetExists {
+			if !targetResolved {
 				best.matchRoot = root.root
 			}
 			bestLen = rootLen

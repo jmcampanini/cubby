@@ -150,6 +150,37 @@ func TestDoctorReportsHealthyAndUnhealthySetups(t *testing.T) {
 	})
 }
 
+func TestDoctorReportsUnresolvedAndNonRegularManagedLinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
+	if err := os.Symlink("loop.work", filepath.Join(src, "loop.work")); err != nil {
+		t.Fatalf("Symlink(loop.work) error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(src, "dir.work"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(dir.work) error = %v", err)
+	}
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \"../src\"\n")
+	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+	mustSymlinkForCmdTest(t, filepath.Join(host, "loop.work"), filepath.Join(src, "loop.work"))
+	mustSymlinkForCmdTest(t, filepath.Join(host, "dir.work"), filepath.Join(src, "dir.work"))
+	mustChdir(t, host)
+
+	out, _, err := executeForTest("doctor")
+	if err == nil {
+		t.Fatalf("doctor error = nil, output = %s", out)
+	}
+	for _, want := range []string{"DRIFT loop.work", "unresolved target", "DRIFT dir.work", "non-regular target"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("doctor output missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestDoctorReportsInvalidSourceIgnorePattern(t *testing.T) {
 	root := t.TempDir()
 	host := filepath.Join(root, "host")
