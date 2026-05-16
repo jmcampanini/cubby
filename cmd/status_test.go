@@ -170,6 +170,31 @@ func TestDoctorReportsInvalidSourceIgnorePattern(t *testing.T) {
 	}
 }
 
+func TestDoctorReportsConflictsForSymlinkedSourceRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	realSrc := filepath.Join(root, "real-src")
+	hostSrc := filepath.Join(host, "src")
+	mustWrite(t, filepath.Join(realSrc, "cubby.toml"), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(realSrc, "conflict.work"), "source\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \"./src\"\n")
+	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+	mustWrite(t, filepath.Join(host, "conflict.work"), "host\n")
+	mustSymlinkForCmdTest(t, hostSrc, realSrc)
+	mustChdir(t, host)
+
+	out, _, err := executeForTest("doctor")
+	if err == nil {
+		t.Fatalf("doctor error = nil, output = %s", out)
+	}
+	if !strings.Contains(out, "CONFLICT conflict.work") {
+		t.Fatalf("doctor output = %q, want symlinked source conflict", out)
+	}
+}
+
 func TestDoctorReportsConflictsWhenHostIgnoresConflicts(t *testing.T) {
 	root := t.TempDir()
 	host := filepath.Join(root, "host")
