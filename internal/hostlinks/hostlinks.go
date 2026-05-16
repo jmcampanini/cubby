@@ -273,24 +273,30 @@ func owningSource(target string, roots []sourceRoot, targetResolved bool) (sourc
 		if targetResolved && !root.hasConfig {
 			continue
 		}
-		matchRoot := root.matchRoot
-		if !targetResolved {
-			matchRoot = root.root
-		}
-		if !insideRoot(matchRoot, target) {
-			continue
-		}
-		rootLen := len(splitPath(matchRoot))
-		if !ok || rootLen > bestLen || (rootLen == bestLen && root.order < best.order) {
-			best = root
-			if !targetResolved {
-				best.matchRoot = root.root
+		for _, matchRoot := range candidateMatchRoots(root, targetResolved) {
+			if !insideRoot(matchRoot, target) {
+				continue
 			}
-			bestLen = rootLen
-			ok = true
+			rootLen := len(splitPath(matchRoot))
+			if !ok || rootLen > bestLen || (rootLen == bestLen && root.order < best.order) {
+				best = root
+				best.matchRoot = matchRoot
+				bestLen = rootLen
+				ok = true
+			}
 		}
 	}
 	return best, ok
+}
+
+func candidateMatchRoots(root sourceRoot, targetResolved bool) []string {
+	if targetResolved {
+		return []string{root.matchRoot}
+	}
+	if root.root == root.matchRoot {
+		return []string{root.root}
+	}
+	return []string{root.root, root.matchRoot}
 }
 
 func insideRoot(root, path string) bool {

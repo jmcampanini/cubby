@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -16,6 +15,10 @@ type SourceListItem struct {
 	Name     string   `json:"name"`
 	Path     string   `json:"path"`
 	Profiles []string `json:"profiles"`
+}
+
+type sourceListEnvelope struct {
+	Sources []SourceListItem `json:"sources"`
 }
 
 func sourceListCommand() *cobra.Command {
@@ -34,9 +37,7 @@ func sourceListCommand() *cobra.Command {
 				return err
 			}
 			if jsonOutput {
-				encoder := json.NewEncoder(cmd.OutOrStdout())
-				encoder.SetEscapeHTML(false)
-				return encoder.Encode(items)
+				return writeCommandJSON(cmd, sourceListEnvelope{Sources: sourceListJSONItems(items)})
 			}
 
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), renderSourceListTable(items))
@@ -58,6 +59,15 @@ func sourceListItems(project *config.Project) []SourceListItem {
 		})
 	}
 	return items
+}
+
+func sourceListJSONItems(items []SourceListItem) []SourceListItem {
+	jsonItems := make([]SourceListItem, 0, len(items))
+	for _, item := range items {
+		item.Path = slashPath(item.Path)
+		jsonItems = append(jsonItems, item)
+	}
+	return jsonItems
 }
 
 func renderSourceListTable(items []SourceListItem) string {

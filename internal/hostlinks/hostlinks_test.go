@@ -108,6 +108,38 @@ func TestDiscoverDetectsUnresolvedAndNonRegularTargets(t *testing.T) {
 	assertReason(t, byRel["dir.work"], ReasonNonRegular)
 }
 
+func TestDiscoverClassifiesDanglingLinksThroughResolvedSourceAlias(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges vary on Windows")
+	}
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	realSrc := filepath.Join(root, "real-src")
+	aliasSrc := filepath.Join(root, "alias-src")
+	mustWriteHostlinks(t, filepath.Join(realSrc, "existing.work"), "work\n")
+	if err := os.Symlink(realSrc, aliasSrc); err != nil {
+		t.Fatalf("Symlink(%q, %q) error = %v", realSrc, aliasSrc, err)
+	}
+	resolvedRealSrc, err := filepath.EvalSymlinks(realSrc)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", realSrc, err)
+	}
+	mustSymlinkHostlinks(t, filepath.Join(host, "stale.work"), filepath.Join(resolvedRealSrc, "stale.work"))
+	sources := []config.RegisteredSource{testSource("src", aliasSrc, []string{"work"}, nil)}
+
+	links, err := Discover(host, sources)
+	if err != nil {
+		t.Fatalf("Discover error = %v", err)
+	}
+	if len(links) != 1 {
+		t.Fatalf("links len = %d, want 1: %#v", len(links), links)
+	}
+	if links[0].SourceName != "src" || links[0].SourceRelPath != "stale.work" || links[0].TargetExists {
+		t.Fatalf("link = %#v, want dangling link under source alias", links[0])
+	}
+	assertReason(t, links[0], ReasonDangling)
+}
+
 func TestDiscoverDiagnosticsClassifiesDanglingLinksUnderMissingSourceRoots(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink privileges vary on Windows")

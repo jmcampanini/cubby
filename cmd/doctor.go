@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -11,6 +10,23 @@ import (
 	"github.com/jmcampanini/cubby/internal/linkops"
 	"github.com/spf13/cobra"
 )
+
+type doctorEnvelope struct {
+	Healthy bool          `json:"healthy"`
+	Issues  []doctorIssue `json:"issues"`
+}
+
+type doctorIssue struct {
+	Kind    string   `json:"kind"`
+	Source  string   `json:"source,omitempty"`
+	Message string   `json:"message,omitempty"`
+	Pattern string   `json:"pattern,omitempty"`
+	Profile string   `json:"profile,omitempty"`
+	Path    string   `json:"path,omitempty"`
+	Target  string   `json:"target,omitempty"`
+	Reasons []string `json:"reasons,omitempty"`
+	Reason  string   `json:"reason,omitempty"`
+}
 
 func doctorCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -25,41 +41,50 @@ func doctorCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			hasIssues, err := runDoctor(cmd, project)
+			jsonOutput, err := jsonOutputEnabled(cmd)
 			if err != nil {
 				return err
 			}
-			if hasIssues {
+			issues, err := collectDoctorIssues(project)
+			if err != nil {
+				return err
+			}
+			if jsonOutput {
+				if err := writeCommandJSON(cmd, doctorEnvelope{Healthy: len(issues) == 0, Issues: issues}); err != nil {
+					return err
+				}
+			} else if err := renderDoctorIssues(cmd, issues); err != nil {
+				return err
+			}
+			if len(issues) > 0 {
 				return &ExitError{Code: 1}
 			}
 			return nil
 		},
 	}
 	addProfileFlag(cmd)
+	cmd.Flags().Bool("json", false, "print health checks as JSON")
 	return cmd
 }
 
-func runDoctor(cmd *cobra.Command, diagnostic *config.DiagnosticProject) (bool, error) {
-	hasIssues := false
-	out := commandOut(cmd)
+func collectDoctorIssues(diagnostic *config.DiagnosticProject) ([]doctorIssue, error) {
+	issues := make([]doctorIssue, 0)
 	project := diagnostic.Project()
 
 	for _, issue := range diagnostic.SourceIssues {
-		hasIssues = true
-		if _, err := fmt.Fprintf(out, "MISSING_SOURCE %s %s\n", issue.Name, issue.Error()); err != nil {
-			return false, err
-		}
+		issues = append(issues, doctorIssue{
+			Kind:    "missing_source",
+			Source:  issue.Name,
+			Message: issue.Error(),
+		})
 	}
 
 	missing, err := missingPatterns(project)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	for _, pattern := range missing {
-		hasIssues = true
-		if _, err := fmt.Fprintf(out, "MISSING_GITIGNORE %s\n", pattern); err != nil {
-			return false, err
-		}
+		issues = append(issues, doctorIssue{Kind: "missing_gitignore", Pattern: pattern})
 	}
 
 	declared := declaredProfileSet(project)
@@ -67,10 +92,7 @@ func runDoctor(cmd *cobra.Command, diagnostic *config.DiagnosticProject) (bool, 
 	validRequested := make([]string, 0, len(requested))
 	for _, profile := range requested {
 		if _, ok := declared[profile]; !ok {
-			hasIssues = true
-			if _, err := fmt.Fprintf(out, "MISSING_PROFILE %s\n", profile); err != nil {
-				return false, err
-			}
+			issues = append(issues, doctorIssue{Kind: "missing_profile", Profile: profile})
 			continue
 		}
 		validRequested = append(validRequested, profile)
@@ -78,35 +100,40 @@ func runDoctor(cmd *cobra.Command, diagnostic *config.DiagnosticProject) (bool, 
 
 	links, err := hostlinks.DiscoverDiagnostics(diagnostic.HostRoot, diagnostic.Sources, diagnostic.SourceRoots)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	for _, link := range links {
 		if !link.TargetExists {
-			hasIssues = true
-			if _, err := fmt.Fprintf(out, "DANGLING %s [source=%s target=%s]\n", filepath.ToSlash(link.HostRelPath), link.SourceName, filepath.ToSlash(link.SourceRelPath)); err != nil {
-				return false, err
-			}
+			issues = append(issues, doctorIssue{
+				Kind:   "dangling",
+				Path:   slashPath(link.HostRelPath),
+				Source: link.SourceName,
+				Target: slashPath(link.SourceRelPath),
+			})
 		}
 		drift := nonDanglingReasons(link.DriftReasons)
 		if len(drift) > 0 {
-			hasIssues = true
-			if _, err := fmt.Fprintf(out, "DRIFT %s [source=%s target=%s reasons=%s]\n", filepath.ToSlash(link.HostRelPath), link.SourceName, filepath.ToSlash(link.SourceRelPath), strings.Join(drift, ",")); err != nil {
-				return false, err
-			}
+			issues = append(issues, doctorIssue{
+				Kind:    "drift",
+				Path:    slashPath(link.HostRelPath),
+				Source:  link.SourceName,
+				Target:  slashPath(link.SourceRelPath),
+				Reasons: drift,
+			})
 		}
 	}
 
 	if len(validRequested) > 0 {
 		discovered, err := discoverProfileFiles(project, validRequested)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 		plan, err := linkops.PlanLink(diagnostic.HostRoot, linkSources(discovered), linkops.PlanOptions{
 			IgnoreConflicts: false,
 			CaseSensitive:   diagnostic.Host.CaseSensitive,
 		})
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 		conflicts := plan.FatalConflicts()
 		sort.Slice(conflicts, func(i, j int) bool {
@@ -116,14 +143,53 @@ func runDoctor(cmd *cobra.Command, diagnostic *config.DiagnosticProject) (bool, 
 			return conflicts[i].RelPath < conflicts[j].RelPath
 		})
 		for _, conflict := range conflicts {
-			hasIssues = true
-			if _, err := fmt.Fprintf(out, "CONFLICT %s %s [source=%s]\n", filepath.ToSlash(conflict.RelPath), conflict.Reason, conflict.SourceName); err != nil {
-				return false, err
-			}
+			issues = append(issues, doctorIssue{
+				Kind:   "conflict",
+				Path:   slashPath(conflict.RelPath),
+				Source: conflict.SourceName,
+				Reason: conflict.Reason,
+			})
 		}
 	}
 
-	return hasIssues, nil
+	return issues, nil
+}
+
+func renderDoctorIssues(cmd *cobra.Command, issues []doctorIssue) error {
+	out := commandOut(cmd)
+	for _, issue := range issues {
+		switch issue.Kind {
+		case "missing_source":
+			if _, err := fmt.Fprintf(out, "MISSING_SOURCE %s %s\n", issue.Source, issue.Message); err != nil {
+				return err
+			}
+		case "missing_gitignore":
+			if _, err := fmt.Fprintf(out, "MISSING_GITIGNORE %s\n", issue.Pattern); err != nil {
+				return err
+			}
+		case "missing_profile":
+			if _, err := fmt.Fprintf(out, "MISSING_PROFILE %s\n", issue.Profile); err != nil {
+				return err
+			}
+		case "dangling":
+			if _, err := fmt.Fprintf(out, "DANGLING %s [source=%s target=%s]\n", issue.Path, issue.Source, issue.Target); err != nil {
+				return err
+			}
+		case "drift":
+			if _, err := fmt.Fprintf(out, "DRIFT %s [source=%s target=%s reasons=%s]\n", issue.Path, issue.Source, issue.Target, strings.Join(issue.Reasons, ",")); err != nil {
+				return err
+			}
+		case "conflict":
+			if _, err := fmt.Fprintf(out, "CONFLICT %s %s [source=%s]\n", issue.Path, issue.Reason, issue.Source); err != nil {
+				return err
+			}
+		default:
+			if _, err := fmt.Fprintf(out, "%s %s\n", strings.ToUpper(issue.Kind), issue.Message); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func declaredProfileSet(project *config.Project) map[string]struct{} {
