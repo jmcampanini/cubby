@@ -30,7 +30,7 @@ func loadProfileScopedProject(cmd *cobra.Command) (*config.Project, []string, er
 		return nil, nil, err
 	}
 
-	profiles := config.NormalizeProfiles(project.Host.Profiles)
+	profiles := config.EffectiveProfiles(project.Host)
 	if err := validateSelectedProfiles(project, profiles); err != nil {
 		return nil, nil, err
 	}
@@ -67,7 +67,7 @@ func loadEffectiveHostConfig(cmd *cobra.Command) (string, config.HostConfig, err
 func validateSelectedProfiles(project *config.Project, profiles []string) error {
 	profiles = config.NormalizeProfiles(profiles)
 	if len(profiles) == 0 {
-		return fmt.Errorf("no profiles selected; set top-level profiles in %s, CUBBY_PROFILE, or --profile", config.HostConfigFileName)
+		return fmt.Errorf("no profiles selected; set top-level profiles in %s, CUBBY_PROFILE, --profile, or env_profiles", config.HostConfigFileName)
 	}
 
 	declared := make(map[string]struct{})

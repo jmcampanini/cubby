@@ -91,7 +91,7 @@ func TestGitignoreSyncAppendsToExistingGitignoreReadably(t *testing.T) {
 	if result.code != 0 {
 		t.Fatalf("gitignore sync code = %d, stderr = %s", result.code, result.stderr)
 	}
-	want := "existing\n*.work.*\n*.work\n"
+	want := "existing\n/.cubby.toml\n*.work.*\n*.work\n"
 	if got := mustRead(t, filepath.Join(host, ".gitignore")); got != want {
 		t.Fatalf(".gitignore = %q, want %q", got, want)
 	}

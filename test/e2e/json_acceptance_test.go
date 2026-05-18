@@ -109,8 +109,8 @@ func TestGitignoreJSONAcceptance(t *testing.T) {
 		Missing []string `json:"missing"`
 	}
 	decodeJSON(t, check.stdout, &checkBody)
-	if checkBody.OK || !reflect.DeepEqual(checkBody.Missing, []string{"*.work.*", "*.work"}) {
-		t.Fatalf("gitignore check JSON = %#v, want missing work patterns", checkBody)
+	if checkBody.OK || !reflect.DeepEqual(checkBody.Missing, []string{"/.cubby.toml", "*.work.*", "*.work"}) {
+		t.Fatalf("gitignore check JSON = %#v, want missing host config and work patterns", checkBody)
 	}
 
 	sync := runCubby(t, bin, host, "gitignore", "sync", "--json")
@@ -122,8 +122,8 @@ func TestGitignoreJSONAcceptance(t *testing.T) {
 		Added   []string `json:"added"`
 	}
 	decodeJSON(t, sync.stdout, &syncBody)
-	if !syncBody.Changed || !reflect.DeepEqual(syncBody.Added, []string{"*.work.*", "*.work"}) {
-		t.Fatalf("gitignore sync JSON = %#v, want changed work patterns", syncBody)
+	if !syncBody.Changed || !reflect.DeepEqual(syncBody.Added, []string{"/.cubby.toml", "*.work.*", "*.work"}) {
+		t.Fatalf("gitignore sync JSON = %#v, want changed host config and work patterns", syncBody)
 	}
 
 	syncAgain := runCubby(t, bin, host, "gitignore", "sync", "--json")
@@ -305,7 +305,7 @@ func TestDoctorJSONAcceptance(t *testing.T) {
 
 	healthyHost := filepath.Join(tmp, "healthy")
 	mustWrite(t, filepath.Join(healthyHost, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
-	mustWrite(t, filepath.Join(healthyHost, ".gitignore"), "*.work.*\n*.work\n")
+	mustWrite(t, filepath.Join(healthyHost, ".gitignore"), "/.cubby.toml\n*.work.*\n*.work\n")
 	mustSymlink(t, filepath.Join(healthyHost, "ok.work"), filepath.Join(src, "ok.work"))
 	healthy := runCubby(t, bin, healthyHost, "doctor", "--json")
 	if healthy.code != 0 {

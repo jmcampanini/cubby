@@ -7,6 +7,6 @@ func profileCommand() *cobra.Command {
 		Use:   "profile",
 		Short: "Profile commands",
 	}
-	cmd.AddCommand(profileListCommand())
+	cmd.AddCommand(profileListCommand(), profileEffectiveCommand())
 	return cmd
 }

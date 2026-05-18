@@ -22,9 +22,32 @@ func TestGitignoreCheckUsesAllSourceDeclaredProfiles(t *testing.T) {
 	if err == nil {
 		t.Fatalf("gitignore check error = nil, want missing patterns")
 	}
-	for _, want := range []string{"*.client.*", "*.client", "*.personal.*", "*.personal", "*.work.*", "*.work"} {
+	for _, want := range []string{"/.cubby.toml", "*.client.*", "*.client", "*.personal.*", "*.personal", "*.work.*", "*.work"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("gitignore check output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestGitignoreCheckRequiresHostConfigEvenWhenProfilePatternsPresent(t *testing.T) {
+	root := t.TempDir()
+	host := filepath.Join(root, "host")
+	src := filepath.Join(root, "src")
+	mustWrite(t, filepath.Join(src, config.SourceConfigFileName), "profiles = [\"work\"]\n")
+	mustWrite(t, filepath.Join(host, config.HostConfigFileName), "[[source]]\nname = \"src\"\npath = \"../src\"\n")
+	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+	mustChdir(t, host)
+
+	out, _, err := executeForTest("gitignore", "check")
+	if err == nil {
+		t.Fatalf("gitignore check error = nil, want missing host config pattern")
+	}
+	if !strings.Contains(out, "/.cubby.toml") {
+		t.Fatalf("gitignore check output missing %q:\n%s", "/.cubby.toml", out)
+	}
+	for _, unwanted := range []string{"*.work.*", "*.work"} {
+		if strings.Contains(out, unwanted+"\n") {
+			t.Fatalf("gitignore check output unexpectedly lists %q:\n%s", unwanted, out)
 		}
 	}
 }

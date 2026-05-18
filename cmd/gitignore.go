@@ -20,8 +20,8 @@ func gitignoreCommand() *cobra.Command {
 }
 
 func missingPatterns(project *config.Project) ([]string, error) {
-	profiles := project.DeclaredProfiles()
-	required := gitignore.RequiredPatterns(profiles)
+	profilePatterns := gitignore.RequiredPatterns(project.DeclaredProfiles())
+	required := append([]string{"/" + config.HostConfigFileName}, profilePatterns...)
 	gitignorePath := filepath.Join(project.HostRoot, ".gitignore")
 	missing, err := gitignore.MissingPatternsFile(gitignorePath, required)
 	if err != nil {

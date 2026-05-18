@@ -118,7 +118,7 @@ func TestDoctorReportsHealthyAndUnhealthySetups(t *testing.T) {
 	t.Run("healthy", func(t *testing.T) {
 		host := filepath.Join(root, "healthy")
 		mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \"../src\"\n")
-		mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
+		mustWrite(t, filepath.Join(host, ".gitignore"), "/.cubby.toml\n*.work.*\n*.work\n")
 		mustSymlinkForCmdTest(t, filepath.Join(host, "ok.work"), filepath.Join(src, "ok.work"))
 		mustChdir(t, host)
 

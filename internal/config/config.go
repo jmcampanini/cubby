@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +22,10 @@ var DefaultSourceConfig = SourceConfig{}
 
 // HostConfig is the host repository's .cubby.toml schema.
 type HostConfig struct {
-	Profiles        []string     `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+	Profiles []string `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+	// EnvProfiles names an environment variable whose comma-separated value is
+	// appended to Profiles by EffectiveProfiles. Empty string means unused.
+	EnvProfiles     string       `toml:"env_profiles"`
 	IgnoreConflicts bool         `toml:"ignore_conflicts" config:"ignore-conflicts" help:"skip conflicting host paths instead of failing link"`
 	CaseSensitive   bool         `toml:"case_sensitive" config:"case-sensitive" help:"treat projected host paths as case-sensitive"`
 	Sources         []HostSource `toml:"source"`
@@ -39,9 +43,10 @@ type SourceConfig struct {
 	Ignore   []string `toml:"ignore"`
 }
 
-// NormalizeHostConfig returns cfg with profile defaults normalized.
+// NormalizeHostConfig returns cfg with profile lists deduplicated and string-valued host fields trimmed.
 func NormalizeHostConfig(cfg HostConfig) HostConfig {
 	cfg.Profiles = NormalizeProfiles(cfg.Profiles)
+	cfg.EnvProfiles = strings.TrimSpace(cfg.EnvProfiles)
 	return cfg
 }
 
@@ -67,6 +72,32 @@ func ValidateSourceConfig(sourceName string, cfg SourceConfig) (SourceConfig, er
 		}
 	}
 	return cfg, nil
+}
+
+// EffectiveProfiles returns the host config's selected profiles after appending
+// the comma-split value of the env var named by cfg.EnvProfiles (if any).
+// Duplicates are removed first-seen via NormalizeProfiles.
+func EffectiveProfiles(cfg HostConfig) []string {
+	raw := NormalizeProfiles(cfg.Profiles)
+	if cfg.EnvProfiles == "" {
+		return raw
+	}
+	extra := splitCSV(os.Getenv(cfg.EnvProfiles))
+	if len(extra) == 0 {
+		return raw
+	}
+	return NormalizeProfiles(append(raw, extra...))
+}
+
+func splitCSV(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // NormalizeProfiles trims whitespace, drops empty entries, and deduplicates while preserving first-seen order.

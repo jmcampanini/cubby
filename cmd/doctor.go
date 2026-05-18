@@ -88,7 +88,7 @@ func collectDoctorIssues(diagnostic *config.DiagnosticProject) ([]doctorIssue, e
 	}
 
 	declared := declaredProfileSet(project)
-	requested := config.NormalizeProfiles(diagnostic.Host.Profiles)
+	requested := config.EffectiveProfiles(diagnostic.Host)
 	validRequested := make([]string, 0, len(requested))
 	for _, profile := range requested {
 		if _, ok := declared[profile]; !ok {
