@@ -6,31 +6,20 @@ VERSION := $(shell git describe --tags --dirty --always 2>/dev/null || date -u '
 LDFLAGS := -ldflags "-X github.com/jmcampanini/cubby/cmd.Version=$(VERSION)"
 GO_FILES := $(shell git ls-files '*.go' && git ls-files --others --exclude-standard '*.go')
 
-help:
-	@printf '%s\n' \
-		'Available targets:' \
-		'  build       Build cubby to $(BIN)' \
-		'  test        Run go test -race ./...' \
-		'  lint        Run golangci-lint' \
-		'  lint-fix    Run golangci-lint with fixes' \
-		'  fmt         Format tracked/non-ignored Go files' \
-		'  fmt-check   Check gofmt without modifying files' \
-		'  tidy        Run go mod tidy' \
-		'  tidy-check  Check go.mod/go.sum tidiness without modifying files' \
-		'  check       Run fmt-check, tidy-check, lint, and test' \
-		'  clean       Remove build artifacts, coverage files, and test cache'
+help: ## Show this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-build:
+build: ## Build cubby to build/cubby.
 	mkdir -p $(dir $(BIN))
 	go build $(LDFLAGS) -o $(BIN) .
 
-test:
+test: ## Run go test -race ./...
 	go test -race ./...
 
-fmt:
+fmt: ## Format tracked/non-ignored Go files.
 	@if [ -n "$(GO_FILES)" ]; then gofmt -w $(GO_FILES); fi
 
-fmt-check:
+fmt-check: ## Check gofmt without modifying files.
 	@if [ -n "$(GO_FILES)" ]; then \
 		unformatted="$$(gofmt -l $(GO_FILES))"; \
 		if [ -n "$$unformatted" ]; then \
@@ -39,20 +28,20 @@ fmt-check:
 		fi; \
 	fi
 
-lint:
+lint: ## Run golangci-lint.
 	golangci-lint run ./...
 
-lint-fix:
+lint-fix: ## Run golangci-lint with fixes.
 	golangci-lint run --fix ./...
 
-tidy:
+tidy: ## Run go mod tidy.
 	go mod tidy
 
-tidy-check:
+tidy-check: ## Check go.mod/go.sum tidiness without modifying files.
 	go mod tidy -diff
 
-check: fmt-check tidy-check lint test
+check: fmt-check tidy-check lint test ## Run fmt-check, tidy-check, lint, and test.
 
-clean:
+clean: ## Remove build artifacts, coverage files, and test cache.
 	rm -rf $(BUILD_DIR) dist coverage.out coverage.txt profile.out cpu.out mem.out
 	go clean -testcache
