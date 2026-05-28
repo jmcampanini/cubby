@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/jmcampanini/cubby/internal/config"
-	configloader "github.com/jmcampanini/go-config-loader"
+	"github.com/jmcampanini/go-config-loader/configloader"
 	"github.com/jmcampanini/go-config-loader/pflagloader"
 	"github.com/spf13/cobra"
 )
@@ -57,11 +57,11 @@ func loadEffectiveHostConfig(cmd *cobra.Command) (string, config.HostConfig, err
 		return "", config.HostConfig{}, err
 	}
 
-	hostCfg, _, err := configloader.Load(config.DefaultHostConfig, fileLoader, envLoader, flagLoader)
+	hostCfg, _, err := loadHostConfigWithLoaders(hostFile, fileLoader, envLoader, flagLoader)
 	if err != nil {
-		return "", config.HostConfig{}, fmt.Errorf("load host config %q: %w", hostFile, err)
+		return "", config.HostConfig{}, err
 	}
-	return hostRoot, config.NormalizeHostConfig(hostCfg), nil
+	return hostRoot, hostCfg, nil
 }
 
 func validateSelectedProfiles(project *config.Project, profiles []string) error {

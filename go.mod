@@ -1,12 +1,12 @@
 module github.com/jmcampanini/cubby
 
-go 1.25.0
+go 1.26.3
 
 require (
 	charm.land/lipgloss/v2 v2.0.3
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/jmcampanini/go-config-loader v0.0.0-20260508015103-d07de7d10af7
-	github.com/spf13/cobra v1.10.1
+	github.com/jmcampanini/go-config-loader v0.1.0
+	github.com/spf13/cobra v1.10.2
 )
 
 require (

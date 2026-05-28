@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	configloader "github.com/jmcampanini/go-config-loader"
+	"github.com/jmcampanini/go-config-loader/configloader"
 )
 
 var validSourceName = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -76,6 +76,15 @@ func LoadHostConfigFile(path string) (HostConfig, error) {
 		return HostConfig{}, err
 	}
 	return NormalizeHostConfig(hostCfg), nil
+}
+
+// LoadSourceConfigFile loads, normalizes, and validates one required source config file.
+func LoadSourceConfigFile(path, sourceName string) (SourceConfig, error) {
+	sourceCfg, err := loadRequiredFile(path, DefaultSourceConfig)
+	if err != nil {
+		return SourceConfig{}, err
+	}
+	return ValidateSourceConfig(sourceName, sourceCfg)
 }
 
 // LoadProjectWithHostConfig loads registered sources using an already-effective host config.
@@ -171,13 +180,9 @@ func loadRegisteredSource(hostRoot string, _ int, source HostSource) (Registered
 	}
 
 	sourceFile := filepath.Join(resolvedPath, SourceConfigFileName)
-	sourceCfg, err := loadRequiredFile(sourceFile, DefaultSourceConfig)
+	sourceCfg, err := LoadSourceConfigFile(sourceFile, name)
 	if err != nil {
 		return RegisteredSource{}, fmt.Errorf("load source config for source %q at %q: %w", name, sourceFile, err)
-	}
-	sourceCfg, err = ValidateSourceConfig(name, sourceCfg)
-	if err != nil {
-		return RegisteredSource{}, err
 	}
 
 	return RegisteredSource{

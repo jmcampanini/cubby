@@ -8,6 +8,7 @@ class Cubby < Formula
   def install
     ldflags = "-s -w -X github.com/jmcampanini/cubby/cmd.Version=HEAD-#{Utils.git_short_head}"
     system "go", "build", *std_go_args(ldflags: ldflags)
+    generate_completions_from_executable(bin/"cubby", "completion")
   end
 
   test do

@@ -1,1 +1,12 @@
-build/
+/build/
+/dist/
+coverage.out
+coverage.txt
+*.coverprofile
+*.prof
+cpu.out
+mem.out
+.claude/
+.claude-plans/
+.claude-sandbox/
+.codex-*

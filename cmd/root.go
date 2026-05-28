@@ -17,7 +17,6 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	}
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
-	cmd.CompletionOptions.DisableDefaultCmd = true
 
 	cmd.AddCommand(
 		linkCommand(),
@@ -29,6 +28,8 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 		sourceCommand(),
 		gitignoreCommand(),
 		lazygitCommand(),
+		configCommand(),
+		docsCommand(),
 	)
 
 	return cmd
