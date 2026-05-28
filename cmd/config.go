@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"text/tabwriter"
 
@@ -27,23 +28,24 @@ func configCommand() *cobra.Command {
 				return validateConfigFile(cmd, validatePath, validateSource)
 			}
 
-			_, hostCfg, report, err := loadEffectiveHostConfigReport(cmd)
+			_, hostCfg, report, err := loadEffectiveHostConfigWithReport(cmd)
 			if err != nil {
 				return err
 			}
 
+			out := cmd.OutOrStdout()
 			reporter := configreporter.New(hostCfg, report)
-			if err := reporter.WriteTOML(cmd.OutOrStdout()); err != nil {
+			if err := reporter.WriteTOML(out); err != nil {
 				return err
 			}
 			if !showProvenance {
 				return nil
 			}
 
-			if _, err := fmt.Fprintln(cmd.OutOrStdout(), "\n# Provenance"); err != nil {
+			if _, err := fmt.Fprintln(out, "\n# Provenance"); err != nil {
 				return err
 			}
-			return writeProvenanceTable(cmd, reporter)
+			return writeProvenanceTable(out, reporter)
 		},
 	}
 	addProfileFlag(cmd)
@@ -58,24 +60,28 @@ func validateConfigFile(cmd *cobra.Command, path string, source bool) error {
 		if _, err := config.LoadSourceConfigFile(path, "source"); err != nil {
 			return err
 		}
-	} else {
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			return fmt.Errorf("resolve config path %q: %w", path, err)
-		}
-		hostCfg, err := config.LoadHostConfigFile(absPath)
-		if err != nil {
-			return err
-		}
-		if _, err := config.LoadProjectWithHostConfig(filepath.Dir(absPath), hostCfg); err != nil {
-			return err
-		}
+	} else if err := validateHostConfigFile(path); err != nil {
+		return err
 	}
+
 	_, err := fmt.Fprintln(cmd.OutOrStdout(), "valid")
 	return err
 }
 
-func loadEffectiveHostConfigReport(cmd *cobra.Command) (string, config.HostConfig, configloader.LoadReport, error) {
+func validateHostConfigFile(path string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve config path %q: %w", path, err)
+	}
+	hostCfg, err := config.LoadHostConfigFile(absPath)
+	if err != nil {
+		return err
+	}
+	_, err = config.LoadProjectWithHostConfig(filepath.Dir(absPath), hostCfg)
+	return err
+}
+
+func loadEffectiveHostConfigWithReport(cmd *cobra.Command) (string, config.HostConfig, configloader.LoadReport, error) {
 	hostRoot, err := config.CurrentHostRoot()
 	if err != nil {
 		return "", config.HostConfig{}, configloader.LoadReport{}, err
@@ -110,8 +116,8 @@ func loadHostConfigWithLoaders(hostFile string, loaders ...configloader.ConfigLo
 	return config.NormalizeHostConfig(hostCfg), report, nil
 }
 
-func writeProvenanceTable(cmd *cobra.Command, reporter configreporter.Reporter[config.HostConfig]) error {
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+func writeProvenanceTable(out io.Writer, reporter configreporter.Reporter[config.HostConfig]) error {
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	headers := reporter.ProvenanceHeaders()
 	if _, err := fmt.Fprintf(w, "# %s\t%s\t%s\n", headers[0], headers[1], headers[2]); err != nil {
 		return err

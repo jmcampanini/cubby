@@ -8,7 +8,7 @@ import (
 )
 
 func docsCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "docs [manual|schema|reference]",
 		Short: "Print Cubby documentation",
 		Long:  "Print built-in Cubby documentation for command usage, config schema, or command reference.",
@@ -35,7 +35,6 @@ func docsCommand() *cobra.Command {
 			return err
 		},
 	}
-	return cmd
 }
 
 func docsContent(topic string) string {

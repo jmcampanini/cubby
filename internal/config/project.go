@@ -109,8 +109,8 @@ func LoadProjectWithHostConfig(hostRoot string, hostCfg HostConfig) (*Project, e
 		Sources:  make([]RegisteredSource, 0, len(hostCfg.Sources)),
 	}
 
-	for i, source := range hostCfg.Sources {
-		registered, err := loadRegisteredSource(hostRoot, i, source)
+	for _, source := range hostCfg.Sources {
+		registered, err := loadRegisteredSource(hostRoot, source)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +158,7 @@ func validateHostSources(sources []HostSource) error {
 	return nil
 }
 
-func loadRegisteredSource(hostRoot string, _ int, source HostSource) (RegisteredSource, error) {
+func loadRegisteredSource(hostRoot string, source HostSource) (RegisteredSource, error) {
 	name := source.Name
 	if strings.TrimSpace(source.Path) == "" {
 		return RegisteredSource{}, fmt.Errorf("source %q is missing path", name)
