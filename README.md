@@ -107,7 +107,7 @@ Run `cubby profile effective` to see what any other command would resolve to for
 - `cubby profile effective [--profile PROFILE] [--json]` — print the effective profile list for the current invocation.
 - `cubby source list` — list registered sources.
 - `cubby lazygit [--source NAME]` — open `lazygit` in a registered source repo.
-- `cubby config [--provenance]` — print the effective host config and provenance.
+- `cubby config [--provenance]` — print the effective host config, optionally with provenance.
 - `cubby config --validate PATH [--source-config]` — validate a host or source config file.
 - `cubby docs [manual|schema|reference]` — print built-in documentation.
 - `cubby completion SHELL` — generate shell completions.

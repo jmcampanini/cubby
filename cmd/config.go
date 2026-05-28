@@ -47,7 +47,7 @@ func configCommand() *cobra.Command {
 		},
 	}
 	addProfileFlag(cmd)
-	cmd.Flags().BoolVar(&showProvenance, "provenance", true, "include config provenance")
+	cmd.Flags().BoolVar(&showProvenance, "provenance", false, "include config provenance")
 	cmd.Flags().StringVar(&validatePath, "validate", "", "validate a config file and exit")
 	cmd.Flags().BoolVar(&validateSource, "source-config", false, "with --validate, validate a source cubby.toml instead of a host .cubby.toml")
 	return cmd
@@ -58,8 +58,18 @@ func validateConfigFile(cmd *cobra.Command, path string, source bool) error {
 		if _, err := config.LoadSourceConfigFile(path, "source"); err != nil {
 			return err
 		}
-	} else if _, err := config.LoadHostConfigFile(path); err != nil {
-		return err
+	} else {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return fmt.Errorf("resolve config path %q: %w", path, err)
+		}
+		hostCfg, err := config.LoadHostConfigFile(absPath)
+		if err != nil {
+			return err
+		}
+		if _, err := config.LoadProjectWithHostConfig(filepath.Dir(absPath), hostCfg); err != nil {
+			return err
+		}
 	}
 	_, err := fmt.Fprintln(cmd.OutOrStdout(), "valid")
 	return err
@@ -103,11 +113,11 @@ func loadHostConfigWithLoaders(hostFile string, loaders ...configloader.ConfigLo
 func writeProvenanceTable(cmd *cobra.Command, reporter configreporter.Reporter[config.HostConfig]) error {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 	headers := reporter.ProvenanceHeaders()
-	if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", headers[0], headers[1], headers[2]); err != nil {
+	if _, err := fmt.Fprintf(w, "# %s\t%s\t%s\n", headers[0], headers[1], headers[2]); err != nil {
 		return err
 	}
 	for _, row := range reporter.ProvenanceRows() {
-		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", row[0], row[1], row[2]); err != nil {
+		if _, err := fmt.Fprintf(w, "# %s\t%s\t%s\n", row[0], row[1], row[2]); err != nil {
 			return err
 		}
 	}

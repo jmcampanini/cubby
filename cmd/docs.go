@@ -109,7 +109,7 @@ cubby lazygit [--source NAME]
     Open lazygit in a registered source repository.
 
 cubby config [--provenance] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
-    Print the effective host config and provenance.
+    Print the effective host config, optionally with provenance.
 
 cubby config --validate PATH [--source-config]
     Validate a host .cubby.toml or source cubby.toml.
