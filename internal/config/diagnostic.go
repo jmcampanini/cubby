@@ -118,13 +118,9 @@ func loadRegisteredSourceDiagnostic(hostRoot string, order int, source HostSourc
 	}
 
 	sourceFile := filepath.Join(resolvedPath, SourceConfigFileName)
-	sourceCfg, err := loadRequiredFile(sourceFile, DefaultSourceConfig)
+	sourceCfg, err := LoadSourceConfigFile(sourceFile, name)
 	if err != nil {
 		return RegisteredSource{}, root, &SourceIssue{Name: name, Path: resolvedPath, Kind: "invalid_config", Err: fmt.Errorf("load source config for source %q at %q: %w", name, sourceFile, err)}
-	}
-	sourceCfg, err = ValidateSourceConfig(name, sourceCfg)
-	if err != nil {
-		return RegisteredSource{}, root, &SourceIssue{Name: name, Path: resolvedPath, Kind: "invalid_config", Err: err}
 	}
 
 	return RegisteredSource{HostSource: source, ResolvedPath: resolvedPath, Config: sourceCfg}, root, nil
