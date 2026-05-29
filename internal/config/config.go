@@ -22,7 +22,7 @@ var DefaultSourceConfig = SourceConfig{}
 
 // HostConfig is the host repository's .cubby.toml schema.
 type HostConfig struct {
-	Profiles []string `toml:"profiles" config:"profile" help:"profile to apply; repeatable or comma-separated"`
+	Profiles []string `toml:"profiles" config:"profiles" pflag_singular:"profile" help:"profiles to apply; --profiles accepts comma-separated lists"`
 	// EnvProfiles names an environment variable whose comma-separated value is
 	// appended to Profiles by EffectiveProfiles. Empty string means unused.
 	EnvProfiles     string       `toml:"env_profiles"`
@@ -76,7 +76,8 @@ func ValidateSourceConfig(sourceName string, cfg SourceConfig) (SourceConfig, er
 
 // EffectiveProfiles returns the host config's selected profiles after appending
 // the comma-split value of the env var named by cfg.EnvProfiles (if any).
-// Duplicates are removed first-seen via NormalizeProfiles.
+// Config loading has already applied file, CUBBY_PROFILES, and flag precedence
+// to cfg.Profiles.
 func EffectiveProfiles(cfg HostConfig) []string {
 	raw := NormalizeProfiles(cfg.Profiles)
 	if cfg.EnvProfiles == "" {

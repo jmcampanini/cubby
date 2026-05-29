@@ -30,7 +30,7 @@ func TestDoctorAcceptanceHealthySetupIsQuiet(t *testing.T) {
 	}
 }
 
-func TestDoctorFlagsUndeclaredEnvProfilesContribution(t *testing.T) {
+func TestDoctorFlagsUndeclaredProfilesEnv(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink privileges vary on Windows")
 	}
@@ -39,10 +39,10 @@ func TestDoctorFlagsUndeclaredEnvProfilesContribution(t *testing.T) {
 	host := filepath.Join(tmp, "host")
 	src := filepath.Join(tmp, "src")
 	mustWrite(t, filepath.Join(src, "cubby.toml"), "profiles = [\"work\"]\n")
-	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\nenv_profiles = \"CUBBY_EXTRA\"\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
+	mustWrite(t, filepath.Join(host, ".cubby.toml"), "profiles = [\"work\"]\n\n[[source]]\nname = \"src\"\npath = \""+src+"\"\n")
 	mustWrite(t, filepath.Join(host, ".gitignore"), "/.cubby.toml\n*.work.*\n*.work\n")
 
-	result := runCubbyEnv(t, bin, host, map[string]string{"CUBBY_EXTRA": "ghost"}, "doctor")
+	result := runCubbyEnv(t, bin, host, map[string]string{"CUBBY_PROFILES": "ghost"}, "doctor")
 	if result.code == 0 {
 		t.Fatalf("doctor code = 0, want unhealthy; stdout = %s, stderr = %s", result.stdout, result.stderr)
 	}

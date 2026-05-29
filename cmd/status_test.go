@@ -256,7 +256,7 @@ func TestDoctorUsesEffectiveProfileSelectionFromEnvAndFlags(t *testing.T) {
 	mustChdir(t, host)
 
 	t.Run("env", func(t *testing.T) {
-		t.Setenv("CUBBY_PROFILE", "ghost")
+		t.Setenv("CUBBY_PROFILES", "ghost")
 		out, _, err := executeForTest("doctor")
 		if err == nil {
 			t.Fatalf("doctor env error = nil, output = %s", out)
@@ -267,7 +267,7 @@ func TestDoctorUsesEffectiveProfileSelectionFromEnvAndFlags(t *testing.T) {
 	})
 
 	t.Run("flag", func(t *testing.T) {
-		t.Setenv("CUBBY_PROFILE", "work")
+		t.Setenv("CUBBY_PROFILES", "work")
 		out, _, err := executeForTest("doctor", "--profile", "ghost")
 		if err == nil {
 			t.Fatalf("doctor flag error = nil, output = %s", out)

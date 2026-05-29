@@ -34,7 +34,7 @@ func profileEffectiveCommand() *cobra.Command {
 			}
 
 			if len(profiles) == 0 {
-				_, err := fmt.Fprintln(commandErr(cmd), "no profiles selected; set top-level profiles in .cubby.toml, CUBBY_PROFILE, --profile, or env_profiles")
+				_, err := fmt.Fprintln(commandErr(cmd), "no profiles selected; set top-level profiles in .cubby.toml, CUBBY_PROFILES, --profiles/--profile, or env_profiles")
 				return err
 			}
 			for _, p := range profiles {
