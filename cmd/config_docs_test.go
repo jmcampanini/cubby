@@ -17,7 +17,13 @@ func TestConfigCommandPrintsEffectiveConfigAsTOML(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config error = %v, stderr = %s", err, errOut)
 	}
-	for _, want := range []string{"profiles = [\"work\"]", "[[source]]"} {
+	for _, want := range []string{
+		"profiles = [\"work\"]",
+		"[[source]]",
+		"# Effective",
+		`# loaded_files = ["` + filepath.Join(host, config.HostConfigFileName) + `"]`,
+		"# effective_profiles = [\"work\"]",
+	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("config output missing %q:\n%s", want, out)
 		}
@@ -29,6 +35,33 @@ func TestConfigCommandPrintsEffectiveConfigAsTOML(t *testing.T) {
 	if len(parsed.Sources) != 1 || parsed.Sources[0].Name != "src" {
 		t.Fatalf("parsed sources = %#v, want one src source", parsed.Sources)
 	}
+}
+
+func TestConfigCommandPrintsEffectiveProfilesWithEnvProfiles(t *testing.T) {
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal"})
+	mustChdir(t, host)
+	unsetEnv(t, "CUBBY_PROFILE")
+	t.Setenv("CUBBY_TEST_EXTRA", "personal,work")
+
+	out, errOut, err := executeForTest("config")
+	if err != nil {
+		t.Fatalf("config error = %v, stderr = %s", err, errOut)
+	}
+	for _, want := range []string{
+		`profiles = ["work"]`,
+		`env_profiles = "CUBBY_TEST_EXTRA"`,
+		`# effective_profiles = ["work", "personal"]`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("config output missing %q:\n%s", want, out)
+		}
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if line == `profiles = ["work", "personal"]` {
+			t.Fatalf("raw TOML should not include env_profiles contribution:\n%s", out)
+		}
+	}
+	parseHostConfigOutput(t, out)
 }
 
 func TestConfigCommandPrintsProvenanceWhenRequestedAsTOMLComments(t *testing.T) {
