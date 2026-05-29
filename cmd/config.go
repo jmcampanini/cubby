@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/jmcampanini/cubby/internal/config"
@@ -39,7 +38,7 @@ func configCommand() *cobra.Command {
 			if err := reporter.WriteTOML(out); err != nil {
 				return err
 			}
-			if err := writeEffectiveHostConfig(out, hostRoot, report.LoadedFiles, hostCfg); err != nil {
+			if err := writeEffectiveRuntimeComments(out, hostRoot, report.LoadedFiles, hostCfg); err != nil {
 				return err
 			}
 			if !showProvenance {
@@ -59,28 +58,20 @@ func configCommand() *cobra.Command {
 	return cmd
 }
 
-func writeEffectiveHostConfig(out io.Writer, hostRoot string, loadedFiles []string, hostCfg config.HostConfig) error {
+func writeEffectiveRuntimeComments(out io.Writer, hostRoot string, loadedFiles []string, hostCfg config.HostConfig) error {
 	if _, err := fmt.Fprintln(out, "\n# Effective"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "# loaded_files = [%s]\n", quoteList(loadedFiles)); err != nil {
+	if _, err := fmt.Fprintf(out, "# loaded_files = [%s]\n", quotedList(loadedFiles)); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(out, "# host_root = %q\n", filepath.Clean(hostRoot)); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "# effective_profiles = [%s]\n", quoteList(config.EffectiveProfiles(hostCfg))); err != nil {
+	if _, err := fmt.Fprintf(out, "# effective_profiles = [%s]\n", quotedList(config.EffectiveProfiles(hostCfg))); err != nil {
 		return err
 	}
 	return nil
-}
-
-func quoteList(values []string) string {
-	quoted := make([]string, len(values))
-	for i, value := range values {
-		quoted[i] = fmt.Sprintf("%q", value)
-	}
-	return strings.Join(quoted, ", ")
 }
 
 func validateConfigFile(cmd *cobra.Command, path string, source bool) error {
