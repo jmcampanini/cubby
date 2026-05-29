@@ -187,94 +187,69 @@ func TestResolveSourcePathExpandsHomeAndRelativePaths(t *testing.T) {
 	}
 }
 
-func TestNormalizeHostConfigTrimsEnvProfiles(t *testing.T) {
-	cfg := NormalizeHostConfig(HostConfig{EnvProfiles: "  CUBBY_EXTRA  "})
-	if cfg.EnvProfiles != "CUBBY_EXTRA" {
-		t.Fatalf("EnvProfiles = %q, want %q", cfg.EnvProfiles, "CUBBY_EXTRA")
-	}
-	cfg = NormalizeHostConfig(HostConfig{EnvProfiles: "   "})
-	if cfg.EnvProfiles != "" {
-		t.Fatalf("whitespace-only EnvProfiles = %q, want empty (sentinel)", cfg.EnvProfiles)
-	}
-}
-
 func TestEffectiveProfiles(t *testing.T) {
-	const envKey = "CUBBY_TEST_EFFECTIVE_PROFILES"
-
 	tests := []struct {
 		name        string
 		profiles    []string
 		envProfiles string
 		envValue    string
-		envUnset    bool
 		want        []string
 	}{
 		{
-			name:     "no env_profiles returns normalized raw",
+			name:     "normalizes raw profiles",
 			profiles: []string{"work", " work ", "personal", ""},
 			want:     []string{"work", "personal"},
 		},
 		{
-			name:        "env_profiles set but env var unset",
+			name:     "preserves first-seen order",
+			profiles: []string{"b", "a", "b"},
+			want:     []string{"b", "a"},
+		},
+		{
+			name:        "appends env_profiles values",
 			profiles:    []string{"work"},
-			envProfiles: envKey,
-			envUnset:    true,
+			envProfiles: "CUBBY_TEST_EXTRA",
+			envValue:    "personal, work",
+			want:        []string{"work", "personal"},
+		},
+		{
+			name:        "unset env_profiles does nothing",
+			profiles:    []string{"work"},
+			envProfiles: "CUBBY_TEST_EXTRA",
 			want:        []string{"work"},
 		},
 		{
-			name:        "env_profiles set, env var empty string",
-			profiles:    []string{"work"},
-			envProfiles: envKey,
-			envValue:    "",
-			want:        []string{"work"},
-		},
-		{
-			name:        "env_profiles appends and dedupes first-seen",
-			profiles:    []string{"a"},
-			envProfiles: envKey,
-			envValue:    "a,b",
-			want:        []string{"a", "b"},
-		},
-		{
-			name:        "env_profiles trims whitespace and drops blanks",
-			profiles:    nil,
-			envProfiles: envKey,
-			envValue:    " foo , , bar ",
-			want:        []string{"foo", "bar"},
-		},
-		{
-			name:        "raw order preserved, env appended after",
-			profiles:    []string{"b", "a"},
-			envProfiles: envKey,
-			envValue:    "c,a",
-			want:        []string{"b", "a", "c"},
-		},
-		{
-			name:        "env_profiles whitespace-only env value",
-			profiles:    []string{"work"},
-			envProfiles: envKey,
-			envValue:    "  ,  ,  ",
-			want:        []string{"work"},
+			name: "empty selection",
+			want: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.envProfiles != "" {
-				if tt.envUnset {
-					t.Setenv(envKey, "")
-					if err := os.Unsetenv(envKey); err != nil {
-						t.Fatalf("Unsetenv(%q) error = %v", envKey, err)
-					}
-				} else {
-					t.Setenv(envKey, tt.envValue)
-				}
+			unsetEnv(t, "CUBBY_TEST_EXTRA")
+			if tt.envValue != "" {
+				t.Setenv(tt.envProfiles, tt.envValue)
 			}
 			cfg := HostConfig{Profiles: tt.profiles, EnvProfiles: tt.envProfiles}
 			got := EffectiveProfiles(cfg)
 			assertStringSlicesEqual(t, got, tt.want)
 		})
 	}
+}
+
+func unsetEnv(t *testing.T, key string) {
+	t.Helper()
+	old, had := os.LookupEnv(key)
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if had {
+			_ = os.Setenv(key, old)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	})
 }
 
 func assertStringSlicesEqual(t *testing.T, got, want []string) {

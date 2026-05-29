@@ -634,7 +634,7 @@ func TestMultiSourceExplicitProfileAndDryRunDiagnosticsEndToEnd(t *testing.T) {
 	assertNotExist(t, filepath.Join(host, "work.work"))
 	assertNotExist(t, filepath.Join(host, "client.client"))
 
-	link := runCubby(t, bin, host, "link", "--profile", "work,client")
+	link := runCubby(t, bin, host, "link", "--profiles", "work,client")
 	if link.code != 0 {
 		t.Fatalf("link code = %d, stdout = %s, stderr = %s", link.code, link.stdout, link.stderr)
 	}

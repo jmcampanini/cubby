@@ -119,7 +119,7 @@ func runCubbyEnv(t *testing.T, bin, dir string, env map[string]string, args ...s
 func cubbyTestEnv(overrides map[string]string) []string {
 	env := make([]string, 0, len(os.Environ())+len(overrides))
 	for _, entry := range os.Environ() {
-		if strings.HasPrefix(entry, "CUBBY_PROFILE=") {
+		if strings.HasPrefix(entry, "CUBBY_PROFILES=") {
 			continue
 		}
 		env = append(env, entry)

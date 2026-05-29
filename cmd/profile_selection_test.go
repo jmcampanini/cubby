@@ -14,7 +14,7 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 	tests := []struct {
 		name         string
 		hostProfiles []string
-		envProfile   *string
+		envProfiles  *string
 		args         []string
 		wantProfiles []string
 		wantErr      string
@@ -25,37 +25,37 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"work"},
 		},
 		{
-			name:         "CUBBY_PROFILE falls back over host defaults",
+			name:         "CUBBY_PROFILES falls back over host defaults",
 			hostProfiles: []string{"work"},
-			envProfile:   stringPtr("personal"),
+			envProfiles:  stringPtr("personal"),
 			wantProfiles: []string{"personal"},
 		},
 		{
-			name:         "CSV CUBBY_PROFILE input is split and trimmed",
+			name:         "CSV CUBBY_PROFILES input is split and trimmed",
 			hostProfiles: []string{"client"},
-			envProfile:   stringPtr("work, personal"),
+			envProfiles:  stringPtr("work, personal"),
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
 			name:         "flag overrides env completely",
 			hostProfiles: []string{"work"},
-			envProfile:   stringPtr("work"),
+			envProfiles:  stringPtr("work"),
 			args:         []string{"--profile", "personal"},
 			wantProfiles: []string{"personal"},
 		},
 		{
-			name:         "repeated flags preserve first seen order",
+			name:         "repeated singular flags preserve first seen order",
 			args:         []string{"--profile", "work", "--profile", "personal"},
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
-			name:         "CSV flag input is split and trimmed",
-			args:         []string{"--profile", "work, personal"},
+			name:         "plural CSV flag input is split and trimmed",
+			args:         []string{"--profiles", "work, personal"},
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
-			name:         "mixed repeated and CSV flags dedupe in order",
-			args:         []string{"--profile", "work,personal", "--profile", "work,client"},
+			name:         "mixed plural CSV and singular flags dedupe in canonical-then-singular order",
+			args:         []string{"--profiles", "work,personal", "--profile", "work", "--profile", "client"},
 			wantProfiles: []string{"work", "personal", "client"},
 		},
 		{
@@ -63,10 +63,10 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantErr: "no profiles selected",
 		},
 		{
-			name:         "changed empty flag errors instead of falling back to env or host defaults",
+			name:         "changed empty plural flag errors instead of falling back to env or host defaults",
 			hostProfiles: []string{"work"},
-			envProfile:   stringPtr("personal"),
-			args:         []string{"--profile="},
+			envProfiles:  stringPtr("personal"),
+			args:         []string{"--profiles="},
 			wantErr:      "no profiles selected",
 		},
 	}
@@ -75,10 +75,10 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			host := writeProfileSelectionProject(t, tt.hostProfiles, []string{"work", "personal", "client"})
 			mustChdir(t, host)
-			if tt.envProfile == nil {
-				unsetEnv(t, "CUBBY_PROFILE")
+			if tt.envProfiles == nil {
+				unsetEnv(t, "CUBBY_PROFILES")
 			} else {
-				t.Setenv("CUBBY_PROFILE", *tt.envProfile)
+				t.Setenv("CUBBY_PROFILES", *tt.envProfiles)
 			}
 
 			cmd := linkCommand()
@@ -100,6 +100,13 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			}
 			assertProfilesEqual(t, profiles, tt.wantProfiles)
 		})
+	}
+}
+
+func TestProfileSingularFlagRejectsEmpty(t *testing.T) {
+	cmd := linkCommand()
+	if err := cmd.ParseFlags([]string{"--profile="}); err == nil {
+		t.Fatal("ParseFlags() error = nil for empty singular --profile")
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 func TestConfigCommandPrintsEffectiveConfigAsTOML(t *testing.T) {
-	unsetEnv(t, "CUBBY_PROFILE")
+	unsetEnv(t, "CUBBY_PROFILES")
 	host := writeProfileSelectionProject(t, []string{"work"}, []string{"work"})
 	mustChdir(t, host)
 
@@ -37,10 +37,30 @@ func TestConfigCommandPrintsEffectiveConfigAsTOML(t *testing.T) {
 	}
 }
 
+func TestConfigCommandPrintsEffectiveProfilesWithProfilesEnv(t *testing.T) {
+	host := writeProfileSelectionProject(t, []string{"work"}, []string{"work", "personal"})
+	mustChdir(t, host)
+	t.Setenv("CUBBY_PROFILES", "personal,work")
+
+	out, errOut, err := executeForTest("config")
+	if err != nil {
+		t.Fatalf("config error = %v, stderr = %s", err, errOut)
+	}
+	for _, want := range []string{
+		`profiles = ["personal", "work"]`,
+		`# effective_profiles = ["personal", "work"]`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("config output missing %q:\n%s", want, out)
+		}
+	}
+	parseHostConfigOutput(t, out)
+}
+
 func TestConfigCommandPrintsEffectiveProfilesWithEnvProfiles(t *testing.T) {
 	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
+	unsetEnv(t, "CUBBY_PROFILES")
 	t.Setenv("CUBBY_TEST_EXTRA", "personal,work")
 
 	out, errOut, err := executeForTest("config")
@@ -65,7 +85,7 @@ func TestConfigCommandPrintsEffectiveProfilesWithEnvProfiles(t *testing.T) {
 }
 
 func TestConfigCommandPrintsProvenanceWhenRequestedAsTOMLComments(t *testing.T) {
-	unsetEnv(t, "CUBBY_PROFILE")
+	unsetEnv(t, "CUBBY_PROFILES")
 	host := writeProfileSelectionProject(t, []string{"work"}, []string{"work"})
 	mustChdir(t, host)
 

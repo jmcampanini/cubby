@@ -9,10 +9,9 @@ import (
 )
 
 func TestProfileEffectivePrintsHostProfiles(t *testing.T) {
-	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal"})
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\n", []string{"work", "personal"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	unsetEnv(t, "CUBBY_TEST_EXTRA")
+	unsetEnv(t, "CUBBY_PROFILES")
 
 	out, errOut, err := executeForTest("profile", "effective")
 	if err != nil {
@@ -26,41 +25,53 @@ func TestProfileEffectivePrintsHostProfiles(t *testing.T) {
 	}
 }
 
-func TestProfileEffectiveAppendsEnvProfiles(t *testing.T) {
-	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal"})
+func TestProfileEffectiveUsesProfilesEnv(t *testing.T) {
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\n", []string{"work", "personal"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
+	t.Setenv("CUBBY_PROFILES", "personal,work")
+
+	out, errOut, err := executeForTest("profile", "effective")
+	if err != nil {
+		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
+	}
+	if out != "personal\nwork\n" {
+		t.Fatalf("stdout = %q, want %q", out, "personal\nwork\n")
+	}
+}
+
+func TestProfileEffectiveFlagOverridesProfilesEnv(t *testing.T) {
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\n", []string{"work", "personal", "client"})
+	mustChdir(t, host)
+	t.Setenv("CUBBY_PROFILES", "personal")
+
+	out, errOut, err := executeForTest("profile", "effective", "--profile", "client")
+	if err != nil {
+		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
+	}
+	if out != "client\n" {
+		t.Fatalf("stdout = %q, want %q", out, "client\n")
+	}
+}
+
+func TestProfileEffectiveAppendsEnvProfiles(t *testing.T) {
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal", "client"})
+	mustChdir(t, host)
+	t.Setenv("CUBBY_PROFILES", "client")
 	t.Setenv("CUBBY_TEST_EXTRA", "personal,work")
 
 	out, errOut, err := executeForTest("profile", "effective")
 	if err != nil {
 		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
 	}
-	if out != "work\npersonal\n" {
-		t.Fatalf("stdout = %q, want %q", out, "work\npersonal\n")
-	}
-}
-
-func TestProfileEffectiveFlagReplacesThenEnvProfilesAppends(t *testing.T) {
-	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal", "client"})
-	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	t.Setenv("CUBBY_TEST_EXTRA", "personal")
-
-	out, errOut, err := executeForTest("profile", "effective", "--profile", "client")
-	if err != nil {
-		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
-	}
-	if out != "client\npersonal\n" {
-		t.Fatalf("stdout = %q, want %q", out, "client\npersonal\n")
+	if out != "client\npersonal\nwork\n" {
+		t.Fatalf("stdout = %q, want %q", out, "client\npersonal\nwork\n")
 	}
 }
 
 func TestProfileEffectiveEmptyWarnsAndExitsZero(t *testing.T) {
 	host := writeProfileEffectiveProject(t, "", []string{"work"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	unsetEnv(t, "CUBBY_TEST_EXTRA")
+	unsetEnv(t, "CUBBY_PROFILES")
 
 	out, errOut, err := executeForTest("profile", "effective")
 	if err != nil {
@@ -72,7 +83,7 @@ func TestProfileEffectiveEmptyWarnsAndExitsZero(t *testing.T) {
 	if !strings.Contains(errOut, "no profiles selected") {
 		t.Fatalf("stderr = %q, want warning containing 'no profiles selected'", errOut)
 	}
-	for _, hint := range []string{".cubby.toml", "CUBBY_PROFILE", "--profile", "env_profiles"} {
+	for _, hint := range []string{".cubby.toml", "CUBBY_PROFILES", "--profiles/--profile", "env_profiles"} {
 		if !strings.Contains(errOut, hint) {
 			t.Fatalf("stderr = %q, want hint %q", errOut, hint)
 		}
@@ -80,16 +91,15 @@ func TestProfileEffectiveEmptyWarnsAndExitsZero(t *testing.T) {
 }
 
 func TestProfileEffectiveJSONEnvelope(t *testing.T) {
-	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work", "personal"})
+	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\n", []string{"work", "personal"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	t.Setenv("CUBBY_TEST_EXTRA", "personal")
+	t.Setenv("CUBBY_PROFILES", "personal")
 
 	out, errOut, err := executeForTest("profile", "effective", "--json")
 	if err != nil {
 		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
 	}
-	want := "{\"profiles\":[\"work\",\"personal\"]}\n"
+	want := "{\"profiles\":[\"personal\"]}\n"
 	if out != want {
 		t.Fatalf("stdout = %q, want %q", out, want)
 	}
@@ -98,8 +108,7 @@ func TestProfileEffectiveJSONEnvelope(t *testing.T) {
 func TestProfileEffectiveJSONEmptyIsEmptyArray(t *testing.T) {
 	host := writeProfileEffectiveProject(t, "", []string{"work"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	unsetEnv(t, "CUBBY_TEST_EXTRA")
+	unsetEnv(t, "CUBBY_PROFILES")
 
 	out, errOut, err := executeForTest("profile", "effective", "--json")
 	if err != nil {
@@ -115,17 +124,16 @@ func TestProfileEffectiveJSONEmptyIsEmptyArray(t *testing.T) {
 }
 
 func TestProfileEffectiveDoesNotValidateAgainstDeclaredSources(t *testing.T) {
-	host := writeProfileEffectiveProject(t, "profiles = [\"work\"]\nenv_profiles = \"CUBBY_TEST_EXTRA\"\n", []string{"work"})
+	host := writeProfileEffectiveProject(t, "profiles = [\"ghost\"]\n", []string{"work"})
 	mustChdir(t, host)
-	unsetEnv(t, "CUBBY_PROFILE")
-	t.Setenv("CUBBY_TEST_EXTRA", "ghost")
+	unsetEnv(t, "CUBBY_PROFILES")
 
 	out, errOut, err := executeForTest("profile", "effective")
 	if err != nil {
 		t.Fatalf("Execute() error = %v, stderr = %s", err, errOut)
 	}
-	if out != "work\nghost\n" {
-		t.Fatalf("stdout = %q, want %q (undeclared profile should still appear)", out, "work\nghost\n")
+	if out != "ghost\n" {
+		t.Fatalf("stdout = %q, want %q (undeclared profile should still appear)", out, "ghost\n")
 	}
 }
 

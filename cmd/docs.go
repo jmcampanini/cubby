@@ -80,16 +80,16 @@ ignore = ["**/*.draft.*"]    # optional doublestar patterns to ignore while link
 
 const commandReferenceDocs = `# Cubby command reference
 
-cubby link [--dry-run] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
+cubby link [--dry-run] [--profiles LIST] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
     Create managed symlinks for selected profiles.
 
-cubby unlink [--dry-run] [--profile PROFILE]
+cubby unlink [--dry-run] [--profiles LIST] [--profile PROFILE]
     Remove managed symlinks for selected profiles.
 
 cubby status [--json]
     Show managed links and drift.
 
-cubby doctor [--json] [--profile PROFILE]
+cubby doctor [--json] [--profiles LIST] [--profile PROFILE]
     Check gitignore, sources, requested profiles, dangling links, drift, and conflicts.
 
 cubby prune [--json]
@@ -98,8 +98,11 @@ cubby prune [--json]
 cubby gitignore check|sync [--json]
     Check or append required profile ignore patterns.
 
-cubby profile list|effective [--json] [--profile PROFILE]
-    List declared profiles or print the effective profile selection.
+cubby profile list [--json]
+    List profiles declared by registered sources.
+
+cubby profile effective [--json] [--profiles LIST] [--profile PROFILE]
+    Print the effective profile selection.
 
 cubby source list [--json]
     List registered sources.
@@ -107,7 +110,7 @@ cubby source list [--json]
 cubby lazygit [--source NAME]
     Open lazygit in a registered source repository.
 
-cubby config [--provenance] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
+cubby config [--provenance] [--profiles LIST] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
     Print the loaded host config with effective runtime comments, optionally with provenance.
 
 cubby config --validate PATH [--source-config]
