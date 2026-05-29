@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/jmcampanini/cubby/internal/config"
@@ -20,15 +21,15 @@ func configCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Print the effective Cubby host config",
-		Long:  "Print the effective host .cubby.toml after applying defaults, the config file, environment variables, and config-backed flags.",
+		Short: "Print loaded host config and effective runtime values",
+		Long:  "Print the loaded host .cubby.toml after applying defaults, the config file, environment variables, and config-backed flags, followed by commented effective runtime values.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if validatePath != "" {
 				return validateConfigFile(cmd, validatePath, validateSource)
 			}
 
-			_, hostCfg, report, err := loadEffectiveHostConfigWithReport(cmd)
+			hostRoot, hostCfg, report, err := loadEffectiveHostConfigWithReport(cmd)
 			if err != nil {
 				return err
 			}
@@ -36,6 +37,9 @@ func configCommand() *cobra.Command {
 			out := cmd.OutOrStdout()
 			reporter := configreporter.New(hostCfg, report)
 			if err := reporter.WriteTOML(out); err != nil {
+				return err
+			}
+			if err := writeEffectiveHostConfig(out, hostRoot, report.LoadedFiles, hostCfg); err != nil {
 				return err
 			}
 			if !showProvenance {
@@ -53,6 +57,30 @@ func configCommand() *cobra.Command {
 	cmd.Flags().StringVar(&validatePath, "validate", "", "validate a config file and exit")
 	cmd.Flags().BoolVar(&validateSource, "source-config", false, "with --validate, validate a source cubby.toml instead of a host .cubby.toml")
 	return cmd
+}
+
+func writeEffectiveHostConfig(out io.Writer, hostRoot string, loadedFiles []string, hostCfg config.HostConfig) error {
+	if _, err := fmt.Fprintln(out, "\n# Effective"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "# loaded_files = [%s]\n", quoteList(loadedFiles)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "# host_root = %q\n", filepath.Clean(hostRoot)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "# effective_profiles = [%s]\n", quoteList(config.EffectiveProfiles(hostCfg))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func quoteList(values []string) string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = fmt.Sprintf("%q", value)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func validateConfigFile(cmd *cobra.Command, path string, source bool) error {

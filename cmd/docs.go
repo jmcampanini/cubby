@@ -58,7 +58,7 @@ Cubby layers profile-scoped dotfiles from one or more source repositories into a
 2. Add a cubby.toml to each source repository declaring available profiles.
 3. Run cubby gitignore sync, cubby link, cubby status, cubby doctor, cubby unlink, or cubby prune as needed.
 
-Use cubby config to inspect the effective host config and provenance. Use cubby docs schema for config file fields and cubby docs reference for command summaries.`
+Use cubby config to inspect the loaded host config, effective runtime comments, and provenance. Use cubby docs schema for config file fields and cubby docs reference for command summaries.`
 
 const configSchemaDocs = `# Cubby config schema
 
@@ -108,7 +108,7 @@ cubby lazygit [--source NAME]
     Open lazygit in a registered source repository.
 
 cubby config [--provenance] [--profile PROFILE] [--ignore-conflicts] [--case-sensitive]
-    Print the effective host config, optionally with provenance.
+    Print the loaded host config with effective runtime comments, optionally with provenance.
 
 cubby config --validate PATH [--source-config]
     Validate a host .cubby.toml or source cubby.toml.
