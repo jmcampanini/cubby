@@ -1,6 +1,7 @@
 class Cubby < Formula
   desc "Layer profile-scoped dotfiles into a host repo"
   homepage "https://github.com/jmcampanini/cubby"
+  license "MIT"
   head "https://github.com/jmcampanini/cubby.git", branch: "main"
 
   depends_on "go" => :build
