@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/jmcampanini/go-config-loader v0.1.0
+	github.com/jmcampanini/go-config-loader v0.2.0
 	github.com/spf13/cobra v1.10.2
 )
 
