@@ -1,4 +1,4 @@
-.PHONY: help build test fmt fmt-check lint lint-fix tidy tidy-check check clean
+.PHONY: help build test fmt fmt-check lint lint-fix tidy tidy-check vuln check clean
 
 BUILD_DIR ?= build
 BIN ?= $(BUILD_DIR)/cubby
@@ -40,7 +40,10 @@ tidy: ## Run go mod tidy.
 tidy-check: ## Check go.mod/go.sum tidiness without modifying files.
 	go mod tidy -diff
 
-check: fmt-check tidy-check lint test ## Run fmt-check, tidy-check, lint, and test.
+vuln: ## Check dependencies and reachable code for known vulnerabilities.
+	go tool govulncheck ./...
+
+check: fmt-check tidy-check lint test vuln ## Run fmt-check, tidy-check, lint, test, and vuln.
 
 clean: ## Remove build artifacts, coverage files, and test cache.
 	rm -rf $(BUILD_DIR) dist coverage.out coverage.txt profile.out cpu.out mem.out
