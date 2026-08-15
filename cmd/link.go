@@ -15,6 +15,7 @@ func linkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: "Create symlinks for selected profiles",
+		Args:  cobra.NoArgs,
 	}
 	addProfileFlag(cmd)
 	cmd.Flags().Bool("dry-run", false, "preview planned link actions without modifying files")

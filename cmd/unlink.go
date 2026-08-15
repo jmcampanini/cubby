@@ -10,6 +10,7 @@ func unlinkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unlink",
 		Short: "Remove symlinks for selected profiles",
+		Args:  cobra.NoArgs,
 	}
 	addProfileFlag(cmd)
 	cmd.Flags().Bool("dry-run", false, "preview planned unlink actions without modifying files")

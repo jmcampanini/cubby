@@ -32,6 +32,7 @@ func doctorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run Cubby health checks",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hostRoot, hostCfg, err := loadEffectiveHostConfig(cmd)
 			if err != nil {
