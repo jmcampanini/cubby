@@ -27,6 +27,7 @@ func statusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Report linked profile files and drift",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

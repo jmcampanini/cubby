@@ -24,6 +24,7 @@ func pruneCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Remove dangling Cubby symlinks",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProjectDiagnostics()
 			if err != nil {

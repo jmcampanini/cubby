@@ -19,6 +19,7 @@ func gitignoreSyncCommand() *cobra.Command {
 		Use:   "sync",
 		Short: "Append missing required .gitignore patterns",
 		Long:  "Load the host and source Cubby configs, compute required patterns for all declared profiles, and append each missing pattern to the host repository's .gitignore.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

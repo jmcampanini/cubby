@@ -25,6 +25,7 @@ func sourceListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List registered source repositories",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

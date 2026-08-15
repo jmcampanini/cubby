@@ -15,6 +15,7 @@ func profileEffectiveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "effective",
 		Short: "Show the effective profile list for the current invocation",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, hostCfg, err := loadEffectiveHostConfig(cmd)
 			if err != nil {
