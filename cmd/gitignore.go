@@ -14,6 +14,10 @@ func gitignoreCommand() *cobra.Command {
 		Use:   "gitignore",
 		Short: "Check or update required host .gitignore patterns",
 		Long:  "Check or update the host repository's .gitignore patterns for every profile declared by registered source repos.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
 	}
 	cmd.AddCommand(gitignoreCheckCommand(), gitignoreSyncCommand())
 	return cmd
