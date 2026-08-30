@@ -96,22 +96,22 @@ Run `cubby profile effective` to see what any other command would resolve to for
 
 ## v0.1 command summary
 
-- `cubby link [--dry-run] [--profiles LIST] [--profile PROFILE]` — create managed symlinks.
-- `cubby unlink [--dry-run] [--profiles LIST] [--profile PROFILE]` — remove managed symlinks.
-- `cubby status` — show managed links and drift.
-- `cubby doctor` — check gitignore, sources, requested profiles, dangling links, drift, and conflicts.
-- `cubby prune` — remove dangling managed symlinks.
-- `cubby gitignore check` — report missing required profile ignore patterns.
-- `cubby gitignore sync` — append missing required profile ignore patterns.
-- `cubby profile list` — list profiles declared by sources.
-- `cubby profile effective [--profiles LIST] [--profile PROFILE] [--json]` — print the effective profile list for the current invocation.
-- `cubby source list` — list registered sources.
-- `cubby lazygit [--source NAME]` — open `lazygit` in a registered source repo.
-- `cubby config [--provenance] [--profiles LIST] [--profile PROFILE]` — print the loaded host config with effective runtime comments, optionally with provenance.
-- `cubby config --validate PATH [--source-config]` — validate a host or source config file.
-- `cubby docs [manual|schema|reference]` — print built-in documentation.
-- `cubby completion SHELL` — generate shell completions.
-- `cubby --version` — print the build version.
+- `cubby link [--dry-run] [--profiles LIST] [--profile PROFILE]` - create managed symlinks.
+- `cubby unlink [--dry-run] [--profiles LIST] [--profile PROFILE]` - remove managed symlinks.
+- `cubby status` - show managed links and drift.
+- `cubby doctor` - check gitignore, sources, requested profiles, dangling links, drift, and conflicts.
+- `cubby prune` - remove dangling managed symlinks.
+- `cubby gitignore check` - report missing required profile ignore patterns.
+- `cubby gitignore sync` - append missing required profile ignore patterns.
+- `cubby profile list` - list profiles declared by sources.
+- `cubby profile effective [--profiles LIST] [--profile PROFILE] [--json]` - print the effective profile list for the current invocation.
+- `cubby source list` - list registered sources.
+- `cubby lazygit [--source NAME]` - open `lazygit` in a registered source repo.
+- `cubby config [--provenance] [--profiles LIST] [--profile PROFILE]` - print the loaded host config with effective runtime comments, optionally with provenance.
+- `cubby config --validate PATH [--source-config]` - validate a host or source config file.
+- `cubby docs [manual|schema|reference]` - print built-in documentation.
+- `cubby completion SHELL` - generate shell completions.
+- `cubby --version` - print the build version.
 
 Data, action, and diagnostic commands support `--json` where documented. `lazygit`, `config`, `docs`, `completion`, help, and version output do not.
 
