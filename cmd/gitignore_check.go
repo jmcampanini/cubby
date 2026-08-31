@@ -16,8 +16,15 @@ func gitignoreCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Report missing required .gitignore patterns",
-		Long:  "Load the host and source Cubby configs, compute required patterns for all declared profiles, and print each missing .gitignore pattern. Exits non-zero when any pattern is missing.",
-		Args:  cobra.NoArgs,
+		Long: `Print each required pattern missing from the host .gitignore on stdout, one
+per line, and exit 1 when any is missing; print nothing and exit 0 when
+all are present. Nothing is modified.
+
+` + gitignorePatternsHelp + `
+
+` + jsonContractHelp + `
+The document is {"ok": bool, "missing": [...]}.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

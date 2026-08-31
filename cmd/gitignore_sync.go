@@ -18,8 +18,17 @@ func gitignoreSyncCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Append missing required .gitignore patterns",
-		Long:  "Load the host and source Cubby configs, compute required patterns for all declared profiles, and append each missing pattern to the host repository's .gitignore.",
-		Args:  cobra.NoArgs,
+		Long: `Append each missing required pattern to the host .gitignore, creating the
+file when absent, and print each appended pattern on stdout, one per line.
+Existing lines are never removed, reordered, or rewritten; when the file
+lacks a trailing newline one is added before the new patterns. Exit
+status is 0 whether or not anything was appended.
+
+` + gitignorePatternsHelp + `
+
+` + jsonContractHelp + `
+The document is {"changed": bool, "added": [...]}.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

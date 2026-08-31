@@ -15,10 +15,48 @@ func linkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: "Create symlinks for selected profiles",
-		Args:  cobra.NoArgs,
+		Long: `Create a relative symlink in the host for every file in every registered
+source that matches a selected profile, at the same relative path, creating
+parent directories as needed. Existing host paths are never replaced or
+modified.
+
+` + profileFileGrammarHelp + `
+
+` + profileSelectionHelp + `
+
+The whole plan is classified before anything changes. A path is a
+conflict when the host path already exists as a file, a directory, or a
+symlink to somewhere else; when two sources provide the same relative
+path (the source registered first wins and the others conflict); or,
+unless case_sensitive is set, when planned or existing host paths differ
+only by letter case. A host symlink that already points at the source
+file is a no-op. Any conflict is fatal: nothing is created, the CONFLICT
+lines are printed on stdout, and the exit status is 1. With
+ignore_conflicts set (in .cubby.toml, CUBBY_IGNORE_CONFLICTS, or
+--ignore-conflicts) conflicts become SKIP lines and the remaining links
+are created. case_sensitive comes from .cubby.toml, CUBBY_CASE_SENSITIVE,
+or --case-sensitive in the same way.
+
+Without --dry-run or --json, stdout lists only SKIP lines; created links
+are not printed. --dry-run prints every planned action (CREATE, NOOP,
+SKIP, CONFLICT) as '<ACTION> <host path> <detail> [source=<name>]', where
+detail is '-> <link target>' for CREATE and the reason otherwise, without
+touching the filesystem, and still exits 1 on a fatal conflict.
+
+` + undeclaredProfileNoticeHelp + `
+
+` + jsonContractHelp + `
+The document is {"dry_run": bool, "actions": [...]}, each action carrying
+"kind" (create, noop, skip, or conflict), "path", "source", and, when
+present, "target", "reason", and "fatal". When any action is a fatal
+conflict nothing was created and the exit status is 1.`,
+		Example: `  cubby link --dry-run
+  cubby link --profiles work,personal
+  CUBBY_PROFILES=personal cubby link --ignore-conflicts`,
+		Args: cobra.NoArgs,
 	}
 	addProfileFlag(cmd)
-	cmd.Flags().Bool("dry-run", false, "preview planned link actions without modifying files")
+	cmd.Flags().Bool("dry-run", false, "preview link actions without modifying files")
 	cmd.Flags().Bool("json", false, "print link plan as JSON")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		project, profiles, err := loadProfileScopedProject(cmd)

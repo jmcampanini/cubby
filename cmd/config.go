@@ -21,8 +21,45 @@ func configCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Print loaded host config and effective runtime values",
-		Long:  "Print the loaded host .cubby.toml after applying defaults, the config file, environment variables, and config-backed flags, followed by commented effective runtime values.",
-		Args:  cobra.NoArgs,
+		Long: `Print the host configuration as TOML on stdout after applying every layer,
+followed by commented effective values, or validate one config file with
+--validate. Nothing is modified.
+
+Settings load in this order, and a later layer replaces any value an
+earlier one sets: built-in defaults (every field empty or false),
+.cubby.toml in the current directory, the environment variables
+CUBBY_PROFILES, CUBBY_IGNORE_CONFLICTS, and CUBBY_CASE_SENSITIVE, then the
+flags --profiles, --profile, --ignore-conflicts, and --case-sensitive on
+the commands that accept them. env_profiles and [[source]] entries are
+read only from the file.
+
+` + profileSelectionHelp + `
+
+` + hostRootHelp + `
+
+Host .cubby.toml fields: profiles (list), env_profiles (an environment
+variable name), ignore_conflicts (bool), case_sensitive (bool), and
+[[source]] entries with name (letters, digits, underscores, and dashes,
+unique within the host) and path (absolute, ~/..., or relative to the host
+root). Source cubby.toml fields: profiles (list, at least one) and ignore
+(list of doublestar patterns; a pattern without '/' matches basenames
+anywhere in the source, one with '/' matches the source-relative path).
+
+The report is valid TOML that reloads as .cubby.toml. Its profiles line
+shows the selected list before env_profiles is applied; the '# Effective'
+comment block lists loaded_files, host_root, and effective_profiles with
+env_profiles applied. --provenance appends a '# Provenance' table naming
+the source of each field: <default>, the file path, <env>, or <pflag>.
+Nothing is redacted; host configuration holds no secret fields. Only the
+host file is read, so the report works while a source is missing.
+
+--validate PATH loads PATH as a host .cubby.toml, resolves its [[source]]
+paths relative to PATH's directory, loads each source's cubby.toml, and
+prints 'valid' on stdout; with --source-config it validates PATH as a
+source cubby.toml instead. --validate does not read the current directory
+and ignores the other flags. Validation errors go to stderr with exit
+status 1.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if validatePath != "" {
 				return validateConfigFile(cmd, validatePath, validateSource)
@@ -54,7 +91,7 @@ func configCommand() *cobra.Command {
 	addProfileFlag(cmd)
 	cmd.Flags().BoolVar(&showProvenance, "provenance", false, "include config provenance")
 	cmd.Flags().StringVar(&validatePath, "validate", "", "validate a config file and exit")
-	cmd.Flags().BoolVar(&validateSource, "source-config", false, "with --validate, validate a source cubby.toml instead of a host .cubby.toml")
+	cmd.Flags().BoolVar(&validateSource, "source-config", false, "with --validate, treat PATH as a source cubby.toml")
 	return cmd
 }
 

@@ -27,7 +27,26 @@ func statusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Report linked profile files and drift",
-		Args:  cobra.NoArgs,
+		Long: `List managed links under the host root, one per line on stdout, and exit 0
+whether or not any link has drifted. Nothing is modified. All registered
+sources must load, so a missing source directory is an error here; use
+'cubby doctor' or 'cubby prune' in that case.
+
+Each line is '<STATE> <host path> [source=<name> profile=<profile>
+target=<source path> reasons=<list>]' where STATE is LINK for a healthy
+link or DRIFT when at least one drift reason applies. profile= is omitted
+when the basename matches no profile the source declares, and reasons=
+appears only on DRIFT lines as a comma-separated list.
+
+` + managedLinkHelp + `
+
+` + driftReasonsHelp + `
+
+` + jsonContractHelp + `
+The document is {"links": [...]}, each link carrying "state" ("linked" or
+"drift"), "path", "source", "target", and, when present, "profile" and
+"reasons".`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {
