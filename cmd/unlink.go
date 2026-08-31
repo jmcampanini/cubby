@@ -10,10 +10,33 @@ func unlinkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unlink",
 		Short: "Remove symlinks for selected profiles",
-		Args:  cobra.NoArgs,
+		Long: `Remove the host symlinks 'cubby link' would create for the selected
+profiles. Only a symlink that points at the matching source file is
+removed; a regular file, a directory, or a symlink pointing elsewhere at
+that path is skipped, a missing path is a no-op, and empty parent
+directories are left in place. Nothing is modified with --dry-run.
+
+` + profileFileGrammarHelp + `
+
+` + profileSelectionHelp + `
+
+Without --dry-run or --json nothing is printed on stdout. --dry-run prints
+every planned action (REMOVE, NOOP, SKIP) as '<ACTION> <host path>
+<reason> [source=<name>]' on stdout, with no reason on REMOVE lines.
+--ignore-conflicts and --case-sensitive are accepted for parity with link
+and change nothing here. Exit status is 0 unless loading or removal
+fails.
+
+` + undeclaredProfileNoticeHelp + `
+
+` + jsonContractHelp + `
+The document is {"dry_run": bool, "actions": [...]}, each action carrying
+"kind" (remove, noop, or skip), "path", "source", and, when present,
+"reason".`,
+		Args: cobra.NoArgs,
 	}
 	addProfileFlag(cmd)
-	cmd.Flags().Bool("dry-run", false, "preview planned unlink actions without modifying files")
+	cmd.Flags().Bool("dry-run", false, "preview unlink actions without modifying files")
 	cmd.Flags().Bool("json", false, "print unlink plan as JSON")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		project, profiles, err := loadProfileScopedProject(cmd)

@@ -25,7 +25,16 @@ func sourceListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List registered source repositories",
-		Args:  cobra.NoArgs,
+		Long: `Print a table of registered sources on stdout with columns NAME, PATH (the
+absolute path after expanding ~ and host-relative paths), and PROFILES
+(declared, comma-separated), in registration order. All sources must
+load. The table uses Unicode box borders and a bold header rendered with
+ANSI escapes on every destination, including pipes and files; use --json
+for machine reading.
+
+` + jsonContractHelp + `
+The document is {"sources": [{"name", "path", "profiles"}]}.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

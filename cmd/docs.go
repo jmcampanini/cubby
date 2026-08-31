@@ -11,7 +11,12 @@ func docsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "docs [manual|schema|reference]",
 		Short: "Print Cubby documentation",
-		Long:  "Print built-in Cubby documentation for command usage, config schema, or command reference.",
+		Long: `Print built-in long-form documentation on stdout: 'manual' (the default)
+for the workflow overview, 'schema' for every field in .cubby.toml and
+cubby.toml, and 'reference' for a one-line summary of each command. Any
+other topic is an error. The text is plain Markdown without terminal
+escapes, and no configuration is read. Command help (--help) is the
+canonical contract for each command; docs supplements it.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 1 {
 				return fmt.Errorf("accepts at most one argument")

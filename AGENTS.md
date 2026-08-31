@@ -3,3 +3,4 @@
 - `make build` - build the `cubby` binary to `build/cubby`. Override with `BUILD_DIR=...` or `BIN=...`.
 - `make check` - run `fmt-check`, `tidy-check`, `lint`, and `test`; use before pushing.
 - `make clean` - remove build artifacts, coverage files, and the Go test cache.
+- Keep command help the canonical user-facing documentation and the README a landing page; keep both consistent with observable behavior.

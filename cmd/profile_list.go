@@ -15,7 +15,14 @@ func profileListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List profiles declared by registered sources",
-		Args:  cobra.NoArgs,
+		Long: `Print the union of profiles declared by all registered sources, sorted,
+one per line on stdout. All sources must load. This is the set every
+selected profile must belong to; it does not depend on the current
+selection.
+
+` + jsonContractHelp + `
+The document is {"profiles": [...]}.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()
 			if err != nil {

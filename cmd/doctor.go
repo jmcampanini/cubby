@@ -32,7 +32,38 @@ func doctorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run Cubby health checks",
-		Args:  cobra.NoArgs,
+		Long: `Run health checks against the host and its registered sources, print one
+line per issue on stdout, and exit 1 when any issue is found. A healthy
+setup prints nothing and exits 0. Nothing is modified.
+
+Checks and their stdout markers:
+  MISSING_SOURCE     a registered source path is missing, is not a
+                     directory, or has an invalid cubby.toml; the other
+                     checks continue with the remaining sources
+  MISSING_GITIGNORE  a pattern 'cubby gitignore check' would report
+  MISSING_PROFILE    a selected profile that no loadable source declares
+  DANGLING           a managed link whose target is missing
+  DRIFT              a managed link with any other drift reason
+  CONFLICT           a host path 'cubby link' would refuse for the
+                     selected profiles; reported even when
+                     ignore_conflicts or --ignore-conflicts is set
+
+Profiles are selected as for 'cubby link'; with none selected the CONFLICT
+check is skipped rather than failing. --case-sensitive changes
+case-collision detection as it does for link. Links into a source whose
+directory is missing are still found and reported as DANGLING.
+
+` + profileSelectionHelp + `
+
+` + managedLinkHelp + `
+
+` + driftReasonsHelp + `
+
+` + jsonContractHelp + `
+The document is {"healthy": bool, "issues": [...]}, each issue carrying
+"kind" (missing_source, missing_gitignore, missing_profile, dangling,
+drift, or conflict) and the fields shown on its text line.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hostRoot, hostCfg, err := loadEffectiveHostConfig(cmd)
 			if err != nil {

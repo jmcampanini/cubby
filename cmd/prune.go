@@ -24,7 +24,23 @@ func pruneCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Remove dangling Cubby symlinks",
-		Args:  cobra.NoArgs,
+		Long: `Remove every managed link whose target no longer exists and print each
+removed host path on stdout, one per line. Exit status is 0 whether or not
+anything was removed. Links whose target exists are left alone whatever
+other drift they show, regular files and unmanaged symlinks are never
+touched, and empty parent directories are not removed. Removal stops at
+the first filesystem error.
+
+A registered source whose directory is missing is still considered, so
+links into a source that was deleted or moved are pruned. A source entry
+without a path, a path that is not a directory, or an invalid cubby.toml
+is an error and nothing is removed.
+
+` + managedLinkHelp + `
+
+` + jsonContractHelp + `
+The document is {"removed": [{"path", "source", "target"}]}.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProjectDiagnostics()
 			if err != nil {

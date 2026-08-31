@@ -29,6 +29,7 @@ func TestApplicationOwnedRunnableLeavesRejectExtraOperands(t *testing.T) {
 		{path: "config", operands: []string{"unexpected"}, wantError: `unknown command "unexpected"`},
 		{path: "lazygit", operands: []string{"unexpected"}, wantError: `unknown command "unexpected"`},
 		{path: "docs", operands: []string{"manual", "unexpected"}, wantError: "accepts at most one argument"},
+		{path: "exit-codes", operands: []string{"unexpected"}, wantError: `unknown command "unexpected"`},
 	}
 
 	root := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
