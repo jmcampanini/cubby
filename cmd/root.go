@@ -1,3 +1,4 @@
+// Package cmd defines Cubby's CLI commands and output contracts.
 package cmd
 
 import (

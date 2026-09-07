@@ -1,32 +1,26 @@
-.PHONY: help build test fmt fmt-check lint lint-fix tidy tidy-check vuln check clean
+.DEFAULT_GOAL := help
+.PHONY: help build test fmt fmt-check lint lint-fix tidy tidy-check version-check vuln check clean
 
 BUILD_DIR ?= build
 BIN ?= $(BUILD_DIR)/cubby
-VERSION := $(shell git describe --tags --dirty --always 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')
+VERSION := $(shell git describe --tags --dirty --always 2>/dev/null || printf 'unknown')
 LDFLAGS := -ldflags "-X github.com/jmcampanini/cubby/cmd.Version=$(VERSION)"
-GOFMT_FILES := $(shell git ls-files '*.go')
 
 help: ## Show this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-16s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 build: ## Build cubby to build/cubby.
 	mkdir -p $(dir $(BIN))
-	go build $(LDFLAGS) -o $(BIN) .
+	go build -trimpath -buildvcs=false $(LDFLAGS) -o $(BIN) .
 
-test: ## Run go test -race ./...
-	go test -race ./...
+test: ## Run all tests uncached with the race detector.
+	go test -count=1 -race ./...
 
-fmt: ## Format tracked Go files.
-	@if [ -n "$(GOFMT_FILES)" ]; then gofmt -w $(GOFMT_FILES); fi
+fmt: ## Format Go source files.
+	go tool golangci-lint fmt
 
-fmt-check: ## Fail if tracked Go files need gofmt.
-	@files="$$(gofmt -l $(GOFMT_FILES))"; \
-	if [ -n "$$files" ]; then \
-		echo "gofmt needed:"; \
-		echo "$$files"; \
-		echo "Run: make fmt"; \
-		exit 1; \
-	fi
+fmt-check: ## Verify formatting without changing files.
+	go tool golangci-lint fmt --diff
 
 lint: ## Run golangci-lint.
 	go tool golangci-lint run ./...
@@ -40,10 +34,18 @@ tidy: ## Run go mod tidy.
 tidy-check: ## Check go.mod/go.sum tidiness without modifying files.
 	go mod tidy -diff
 
+version-check: build ## Verify the built binary reports the injected version.
+	@case "$(VERSION)" in unknown|n/a|"") echo "degenerate version identity: '$(VERSION)'"; exit 1;; esac
+	@out="$$($(BIN) --version)"; \
+	if [ "$$out" != "cubby version $(VERSION)" ]; then \
+		echo "version mismatch: got '$$out', want 'cubby version $(VERSION)'"; \
+		exit 1; \
+	fi
+
 vuln: ## Check dependencies and reachable code for known vulnerabilities.
 	go tool govulncheck ./...
 
-check: fmt-check tidy-check lint test vuln ## Run fmt-check, tidy-check, lint, test, and vuln.
+check: fmt-check tidy-check lint test build version-check vuln ## Run the complete local verification contract.
 
 clean: ## Remove build artifacts, coverage files, and test cache.
 	rm -rf $(BUILD_DIR) dist coverage.out coverage.txt profile.out cpu.out mem.out

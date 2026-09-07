@@ -1,3 +1,4 @@
+// Package profilefiles discovers source files selected by profile and ignore rules.
 package profilefiles
 
 import (

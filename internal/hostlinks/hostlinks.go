@@ -1,3 +1,4 @@
+// Package hostlinks discovers managed symlinks and diagnoses target drift.
 package hostlinks
 
 import (
@@ -11,12 +12,18 @@ import (
 )
 
 const (
-	ReasonDangling     = "dangling"
+	// ReasonDangling marks a link whose target does not exist.
+	ReasonDangling = "dangling"
+	// ReasonPathMismatch marks a link that does not project to its host path.
 	ReasonPathMismatch = "path mismatch"
-	ReasonUnknown      = "unknown profile"
-	ReasonIgnored      = "ignored"
-	ReasonUnresolved   = "unresolved target"
-	ReasonNonRegular   = "non-regular target"
+	// ReasonUnknown marks a target with no declared source profile.
+	ReasonUnknown = "unknown profile"
+	// ReasonIgnored marks a target excluded by source ignore rules.
+	ReasonIgnored = "ignored"
+	// ReasonUnresolved marks a target whose symlink chain cannot be resolved.
+	ReasonUnresolved = "unresolved target"
+	// ReasonNonRegular marks a target that is not a regular file.
+	ReasonNonRegular = "non-regular target"
 )
 
 // ManagedLink is a symlink in the host repo whose target belongs to a registered source.

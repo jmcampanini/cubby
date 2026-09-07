@@ -266,11 +266,11 @@ func assertStringSlicesEqual(t *testing.T, got, want []string) {
 
 func realPath(t *testing.T, path string) string {
 	t.Helper()
-	real, err := filepath.EvalSymlinks(path)
+	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		t.Fatalf("EvalSymlinks(%q) error = %v", path, err)
 	}
-	return real
+	return resolved
 }
 
 func mustChdir(t *testing.T, path string) {

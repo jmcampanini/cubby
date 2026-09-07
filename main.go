@@ -1,3 +1,4 @@
+// Package main runs Cubby's profile-scoped dotfile commands.
 package main
 
 import (
