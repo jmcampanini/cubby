@@ -36,7 +36,7 @@ tidy-check: ## Check go.mod/go.sum tidiness without modifying files.
 
 version-check: build ## Verify the built binary reports the injected version.
 	@case "$(VERSION)" in unknown|n/a|"") echo "degenerate version identity: '$(VERSION)'"; exit 1;; esac
-	@out="$$($(BIN) --version)"; \
+	@out="$$($(BIN) --version)" || exit $$?; \
 	if [ "$$out" != "cubby version $(VERSION)" ]; then \
 		echo "version mismatch: got '$$out', want 'cubby version $(VERSION)'"; \
 		exit 1; \
