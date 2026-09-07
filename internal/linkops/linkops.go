@@ -1,3 +1,4 @@
+// Package linkops plans and applies profile symlink changes with conflict checks.
 package linkops
 
 import (
@@ -13,10 +14,15 @@ import (
 type ActionKind string
 
 const (
-	ActionCreate   ActionKind = "create"
-	ActionRemove   ActionKind = "remove"
-	ActionNoop     ActionKind = "noop"
-	ActionSkip     ActionKind = "skip"
+	// ActionCreate requests a new symlink.
+	ActionCreate ActionKind = "create"
+	// ActionRemove requests removal of an existing symlink.
+	ActionRemove ActionKind = "remove"
+	// ActionNoop records a path that already matches the requested state.
+	ActionNoop ActionKind = "noop"
+	// ActionSkip records a path excluded from the requested changes.
+	ActionSkip ActionKind = "skip"
+	// ActionConflict records a path that prevents the requested change.
 	ActionConflict ActionKind = "conflict"
 )
 
@@ -283,10 +289,12 @@ func caseFoldPath(path string) string {
 	return strings.ToLower(path)
 }
 
+// HostCaseIndex groups existing host paths by their case-folded spelling.
 type HostCaseIndex struct {
 	Entries map[string][]HostEntry
 }
 
+// HostEntry records a host path's actual spelling and directory status.
 type HostEntry struct {
 	RelPath string
 	IsDir   bool
@@ -374,6 +382,7 @@ func (idx *HostCaseIndex) add(relPath string, isDir bool) {
 	idx.Entries[key] = append(idx.Entries[key], HostEntry{RelPath: relPath, IsDir: isDir})
 }
 
+// CaseVariantPrefix finds an existing prefix whose spelling differs only by case.
 func (idx *HostCaseIndex) CaseVariantPrefix(plannedRelPath string) (string, bool) {
 	if idx == nil {
 		return "", false

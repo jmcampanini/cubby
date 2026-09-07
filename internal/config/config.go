@@ -1,3 +1,4 @@
+// Package config loads and validates host and source profile configuration.
 package config
 
 import (
@@ -10,7 +11,9 @@ import (
 )
 
 const (
-	HostConfigFileName   = ".cubby.toml"
+	// HostConfigFileName names the host repository's configuration file.
+	HostConfigFileName = ".cubby.toml"
+	// SourceConfigFileName names a source repository's profile declarations.
 	SourceConfigFileName = "cubby.toml"
 )
 

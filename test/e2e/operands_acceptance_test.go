@@ -133,7 +133,7 @@ func prepareBaseOperandFixture(t *testing.T) operandFixture {
 func snapshotOperandTree(t *testing.T, root string) []treeSnapshotEntry {
 	t.Helper()
 	var snapshot []treeSnapshotEntry
-	err := filepath.WalkDir(root, func(path string, dirEntry fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(root, func(path string, _ fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

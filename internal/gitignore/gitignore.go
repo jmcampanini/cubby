@@ -1,3 +1,4 @@
+// Package gitignore maintains ignore patterns for profile-scoped files.
 package gitignore
 
 import (
