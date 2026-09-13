@@ -34,9 +34,10 @@ Run 'cubby config --help' for configuration precedence and the file
 schema, 'cubby profile effective' for the profiles an invocation would
 use, and 'cubby help exit-codes' for exit-status meanings. 'cubby docs'
 prints longer manual, schema, and reference text.`,
-		Version:       Version,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Version:            Version,
+		DisableSuggestions: true,
+		SilenceUsage:       true,
+		SilenceErrors:      true,
 	}
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
