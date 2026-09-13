@@ -17,20 +17,8 @@ cubby.toml, and 'reference' for a one-line summary of each command. Any
 other topic is an error. The text is plain Markdown without terminal
 escapes, and no configuration is read. Command help (--help) is the
 canonical contract for each command; docs supplements it.`,
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) > 1 {
-				return fmt.Errorf("accepts at most one argument")
-			}
-			if len(args) == 0 {
-				return nil
-			}
-			switch args[0] {
-			case "manual", "schema", "reference":
-				return nil
-			default:
-				return fmt.Errorf("unknown docs topic %q; expected manual, schema, or reference", args[0])
-			}
-		},
+		ValidArgs: []string{"manual", "schema", "reference"},
+		Args:      cobra.MatchAll(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			topic := "manual"
 			if len(args) == 1 {

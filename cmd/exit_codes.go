@@ -12,8 +12,9 @@ func exitCodesTopic() *cobra.Command {
      0: 'status' listing DRIFT links, 'link' and 'unlink' printing SKIP
      lines, 'profile effective' finding no selected profiles (a notice
      goes to stderr), 'gitignore sync' and 'prune' whether or not they
-     changed anything, and --help, --version, or a bare command group
-     printing help.
+     changed anything, --help, --version, or a bare command group
+     printing help, and 'cubby help <topic>' naming an unknown topic,
+     which prints 'Unknown help topic' and the root usage on stdout.
   1  Any failure. Usage errors (an unknown command, operand, flag, or
      docs topic), a missing or invalid .cubby.toml or cubby.toml, a
      source that cannot be loaded, filesystem errors, and lazygit not
