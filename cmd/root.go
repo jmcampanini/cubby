@@ -40,6 +40,12 @@ prints longer manual, schema, and reference text.`,
 	}
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
+	// Register --help and --version before Find strips flags from the
+	// arguments. Cobra otherwise adds them during execute, after Find has
+	// already treated an unregistered --help or --version as taking the next
+	// argument as its value.
+	cmd.InitDefaultHelpFlag()
+	cmd.InitDefaultVersionFlag()
 
 	cmd.AddCommand(
 		linkCommand(),
