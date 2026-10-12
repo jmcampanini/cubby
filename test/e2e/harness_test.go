@@ -20,6 +20,11 @@ type runResult struct {
 
 var acceptanceBin string
 
+// acceptanceVersion is the version injected into the acceptance binary. The
+// mise build task injects the git-derived version; the tests only need to see
+// that injection replaces the "n/a" default.
+const acceptanceVersion = "e2e"
+
 func TestMain(m *testing.M) {
 	root, err := findRepoRoot()
 	if err != nil {
@@ -35,14 +40,15 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
-	cmd := exec.Command("make", "build", "BIN="+bin)
+	cmd := exec.Command("go", "build", "-trimpath", "-buildvcs=false",
+		"-ldflags", "-X github.com/jmcampanini/cubby/cmd.Version="+acceptanceVersion, "-o", bin, ".")
 	cmd.Dir = root
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "make build error = %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+		_, _ = fmt.Fprintf(os.Stderr, "go build error = %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 		_ = os.RemoveAll(tmp)
 		os.Exit(2)
 	}

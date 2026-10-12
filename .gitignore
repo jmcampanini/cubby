@@ -10,3 +10,7 @@ mem.out
 .claude-plans/
 .claude-sandbox/
 .codex-*
+
+# mise personal overrides
+mise.local.toml
+.mise.local.toml
