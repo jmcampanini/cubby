@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -18,38 +17,22 @@ type runResult struct {
 	code   int
 }
 
+// acceptanceBin is the binary under test. The mise test task builds it through
+// the build task and passes its path in CUBBY_E2E_BINARY, so the suite never
+// builds for itself.
 var acceptanceBin string
 
 func TestMain(m *testing.M) {
-	root, err := findRepoRoot()
-	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+	acceptanceBin = os.Getenv("CUBBY_E2E_BINARY")
+	if acceptanceBin == "" {
+		_, _ = fmt.Fprintln(os.Stderr, "CUBBY_E2E_BINARY is not set; run the suite with 'mise run test'")
 		os.Exit(2)
 	}
-	tmp, err := os.MkdirTemp("", "cubby-e2e-*")
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "create e2e build dir: %v\n", err)
+	if _, err := os.Stat(acceptanceBin); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "stat acceptance binary %q: %v\n", acceptanceBin, err)
 		os.Exit(2)
 	}
-	bin := filepath.Join(tmp, "cubby")
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
-	cmd := exec.Command("make", "build", "BIN="+bin)
-	cmd.Dir = root
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "make build error = %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-		_ = os.RemoveAll(tmp)
-		os.Exit(2)
-	}
-	acceptanceBin = bin
-	code := m.Run()
-	_ = os.RemoveAll(tmp)
-	os.Exit(code)
+	os.Exit(m.Run())
 }
 
 func buildCubby(t *testing.T) string {
