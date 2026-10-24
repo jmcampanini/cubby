@@ -202,7 +202,7 @@ func TestProfileEffectiveUsesProfilesEnv(t *testing.T) {
 		t.Fatalf("profile effective code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
 	}
 	if result.stdout != "personal\nwork\n" {
-		t.Fatalf("profile effective stdout = %q, want %q (dedupe first-seen)", result.stdout, "personal\nwork\n")
+		t.Fatalf("profile effective stdout = %q, want %q", result.stdout, "personal\nwork\n")
 	}
 }
 
