@@ -21,8 +21,8 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 	}{
 		{
 			name:         "host defaults used when no flag or env is present",
-			hostProfiles: []string{"work"},
-			wantProfiles: []string{"work"},
+			hostProfiles: []string{"work", "personal", "work"},
+			wantProfiles: []string{"work", "personal"},
 		},
 		{
 			name:         "CUBBY_PROFILES falls back over host defaults",
@@ -37,10 +37,10 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
-			name:         "CUBBY_PROFILES keeps first occurrences and drops blanks",
+			name:         "CUBBY_PROFILES keeps last occurrences and drops blanks",
 			hostProfiles: []string{"client"},
 			envProfiles:  stringPtr("work, personal, work, ,client,personal"),
-			wantProfiles: []string{"work", "personal", "client"},
+			wantProfiles: []string{"work", "client", "personal"},
 		},
 		{
 			name:         "flag overrides env completely",
@@ -50,9 +50,9 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"personal"},
 		},
 		{
-			name:         "repeated singular flags preserve first seen order",
+			name:         "repeated singular flags keep last occurrences",
 			args:         []string{"--profile", "work", "--profile", "personal", "--profile", "work"},
-			wantProfiles: []string{"work", "personal"},
+			wantProfiles: []string{"personal", "work"},
 		},
 		{
 			name:         "plural CSV flag input is split and trimmed",
@@ -60,14 +60,14 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
-			name:         "repeated plural CSV flags keep first occurrences and drop blanks",
+			name:         "repeated plural CSV flags keep last occurrences and drop blanks",
 			args:         []string{"--profiles", "work,personal,work", "--profiles", " ,client,personal"},
-			wantProfiles: []string{"work", "personal", "client"},
+			wantProfiles: []string{"work", "client", "personal"},
 		},
 		{
-			name:         "mixed plural CSV and singular flags dedupe in canonical-then-singular order",
+			name:         "mixed plural CSV and singular flags keep last occurrences after combining",
 			args:         []string{"--profiles", "work,personal", "--profile", "work", "--profile", "client"},
-			wantProfiles: []string{"work", "personal", "client"},
+			wantProfiles: []string{"personal", "work", "client"},
 		},
 		{
 			name:    "empty effective selection errors",

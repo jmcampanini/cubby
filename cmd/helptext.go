@@ -12,11 +12,15 @@ root.`
 const profileSelectionHelp = `Profiles come from the highest layer that sets them: --profiles LIST
 (comma-separated) and --profile NAME, which may repeat and combine into
 one list, override CUBBY_PROFILES, which overrides profiles in
-.cubby.toml. Entries are trimmed, blanks dropped, and duplicates removed
-keeping the first occurrence. When env_profiles names an environment
-variable that is set, its comma-separated value is appended last. cubby
-keeps no active-profile state; 'cubby profile effective' prints the list
-any command would use.`
+.cubby.toml. Entries are trimmed and blanks dropped. CUBBY_PROFILES and
+flags keep the last occurrence of each duplicate in its position. Flag
+values combine all --profiles entries before all --profile entries,
+regardless of their order on the command line, before removing duplicates.
+TOML profiles keep the first occurrence. When env_profiles names an
+environment variable that is set, its comma-separated value is appended
+last, keeping the first occurrence across the combined list. cubby keeps
+no active-profile state; 'cubby profile effective' prints the list any
+command would use.`
 
 const profileFileGrammarHelp = `A source file is profile-scoped when its basename contains .<profile> as a
 whole dot-separated segment and is not exactly .<profile>: zshrc.work,
