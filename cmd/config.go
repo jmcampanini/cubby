@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/jmcampanini/cubby/internal/config"
@@ -148,7 +149,8 @@ func loadEffectiveHostConfigWithReport(cmd *cobra.Command) (string, config.HostC
 	if err != nil {
 		return "", config.HostConfig{}, configloader.LoadReport{}, fmt.Errorf("create host config loader for %q: %w", hostFile, err)
 	}
-	envLoader, err := configloader.NewEnvironmentLoader[config.HostConfig]("cubby", configloader.OSEnv())
+	env := configloader.OSEnv()
+	envLoader, err := configloader.NewEnvironmentLoader[config.HostConfig]("cubby", env)
 	if err != nil {
 		return "", config.HostConfig{}, configloader.LoadReport{}, err
 	}
@@ -160,6 +162,28 @@ func loadEffectiveHostConfigWithReport(cmd *cobra.Command) (string, config.HostC
 	hostCfg, report, err := loadHostConfigWithLoaders(hostFile, fileLoader, envLoader, flagLoader)
 	if err != nil {
 		return "", config.HostConfig{}, configloader.LoadReport{}, err
+	}
+
+	// Compatibility with go-config-loader's last-occurrence slice deduplication:
+	// recover the winning input so Cubby's documented first-occurrence order survives.
+	// Remove this adapter when the loaders support preserving first occurrences.
+	switch report.Updates["profiles"] {
+	case configloader.SourceEnv:
+		hostCfg.Profiles = config.NormalizeProfiles(strings.Split(env["CUBBY_PROFILES"], ","))
+	case pflagloader.SourcePFlag:
+		var profiles []string
+		if flag := cmd.Flags().Lookup("profiles"); flag.Changed {
+			profiles = strings.Split(flag.Value.String(), ",")
+		}
+		if flag := cmd.Flags().Lookup("profile"); flag.Changed {
+			values, ok := flag.Value.(interface{ Values() []string })
+			if !ok {
+				return "", config.HostConfig{}, configloader.LoadReport{}, fmt.Errorf("profile flag does not expose its values")
+			}
+
+			profiles = append(profiles, values.Values()...)
+		}
+		hostCfg.Profiles = config.NormalizeProfiles(profiles)
 	}
 	return hostRoot, hostCfg, report, nil
 }

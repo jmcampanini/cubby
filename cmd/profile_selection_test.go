@@ -37,6 +37,12 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
+			name:         "CUBBY_PROFILES keeps first occurrences and drops blanks",
+			hostProfiles: []string{"client"},
+			envProfiles:  stringPtr("work, personal, work, ,client,personal"),
+			wantProfiles: []string{"work", "personal", "client"},
+		},
+		{
 			name:         "flag overrides env completely",
 			hostProfiles: []string{"work"},
 			envProfiles:  stringPtr("work"),
@@ -45,13 +51,18 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 		},
 		{
 			name:         "repeated singular flags preserve first seen order",
-			args:         []string{"--profile", "work", "--profile", "personal"},
+			args:         []string{"--profile", "work", "--profile", "personal", "--profile", "work"},
 			wantProfiles: []string{"work", "personal"},
 		},
 		{
 			name:         "plural CSV flag input is split and trimmed",
 			args:         []string{"--profiles", "work, personal"},
 			wantProfiles: []string{"work", "personal"},
+		},
+		{
+			name:         "repeated plural CSV flags keep first occurrences and drop blanks",
+			args:         []string{"--profiles", "work,personal,work", "--profiles", " ,client,personal"},
+			wantProfiles: []string{"work", "personal", "client"},
 		},
 		{
 			name:         "mixed plural CSV and singular flags dedupe in canonical-then-singular order",
