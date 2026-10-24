@@ -1,8 +1,4 @@
-- This repository uses mise for tool versions and task execution. Run tasks with `mise run <task>`; do not call `go`, `golangci-lint`, or similar tools directly.
-- `mise tasks` lists all tasks. Common ones:
-  - `mise run check` runs `fmt-check`, `tidy-check`, `lint`, `test`, `version-check`, and `vuln`; run it before declaring work done.
-  - `mise run build` builds the `cubby` binary to `build/cubby` with version ldflags; `VERSION=x mise run build` overrides the git-derived version.
-  - `mise run fmt` and `mise run lint-fix` apply formatting and lint fixes.
-  - `mise run clean` removes build artifacts, coverage files, and the Go test cache.
-- `mise.toml` pins Go, golangci-lint, and govulncheck; `mise.lock` records their checksums. Bump a tool with `mise upgrade --bump <tool>`, run `mise lock` and `mise run check`, and commit both files.
+- Run tasks with `mise run <task>`; do not call `go`, `golangci-lint`, or similar tools directly.
+- Run `mise run check` before declaring work done.
+- Bump a tool with `mise upgrade --bump <tool>`, run `mise lock` and `mise run check`, and commit both files.
 - Keep command help the canonical user-facing documentation and the README a landing page; keep both consistent with observable behavior.
