@@ -4,9 +4,11 @@ cubby layers profile-scoped dotfiles from one or more source repositories into a
 
 Command help is the canonical reference: `cubby --help` and each command's `--help` describe every user-facing contract, `cubby config --help` describes configuration precedence and the file schema, and `cubby help exit-codes` describes exit statuses.
 
+
 ## Install
 
 cubby distributes from HEAD only; there is no release channel or tagged binary.
+
 
 ### Homebrew
 
@@ -20,6 +22,7 @@ Upgrade to the latest commit:
 ```sh
 brew upgrade --fetch-HEAD cubby
 ```
+
 
 ### From source
 
@@ -35,6 +38,7 @@ mise run build
 ```
 
 To upgrade, run `git pull`, rebuild with `mise install && mise run build`, and replace the binary on your `PATH`.
+
 
 ## Representative commands
 
@@ -53,9 +57,11 @@ To upgrade, run `git pull`, rebuild with `mise install && mise run build`, and r
 
 The typical loop after registering a source is `cubby gitignore sync`, `cubby link`, then `cubby status` or `cubby doctor`. Selecting other profiles for one run looks like `cubby link --profiles work,personal` or `CUBBY_PROFILES=personal cubby link`.
 
+
 ## Required external programs
 
 Only `cubby lazygit` runs an external program: [lazygit](https://github.com/jesseduffield/lazygit) must be on `PATH`. Every other command runs on its own.
+
 
 ## Configuration
 
@@ -75,6 +81,7 @@ path = "../dotfiles"
 profiles = ["work", "personal"]
 ignore = ["**/*.draft.*"]
 ```
+
 
 ## Non-goals
 
