@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jmcampanini/cubby/cmd"
+	"github.com/jmcampanini/cubby/internal/cli"
 )
 
 func main() {
-	root := cmd.NewRootCommand(os.Stdout, os.Stderr)
-	if err := root.Execute(); err != nil {
-		var exitErr *cmd.ExitError
+	if err := cli.Execute(os.Stdout, os.Stderr); err != nil {
+		var exitErr *cli.ExitError
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.Code)
 		}
