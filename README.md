@@ -2,8 +2,6 @@
 
 cubby layers profile-scoped dotfiles from one or more source repositories into a host repository as relative symlinks. A host repository registers its sources in `.cubby.toml`, each source declares its profiles in `cubby.toml`, and a file whose name carries a profile suffix (`zshrc.work`, `nvim/init.work.lua`) is linked into the host at the same relative path whenever that profile is selected. cubby never replaces an existing host file and never accesses the network.
 
-Command help is the canonical reference: `cubby --help` and each command's `--help` describe every user-facing contract, `cubby config --help` describes configuration precedence and the file schema, and `cubby help exit-codes` describes exit statuses.
-
 
 ## Install
 
@@ -50,22 +48,23 @@ To upgrade, run `git pull`, rebuild with `mise install && mise run build`, and r
 | `cubby doctor [--json]` | Report health issues and exit 1 when there are any. |
 | `cubby unlink [--dry-run]` | Remove the links `link` created for the selected profiles. |
 | `cubby prune [--json]` | Remove managed links whose target no longer exists. |
-| `cubby profile effective` | Print the profiles this invocation would use. |
+| `cubby profile effective [--json]` | Print the profiles this invocation would use. |
 | `cubby source list [--json]` | List registered sources. |
 | `cubby lazygit [--source NAME]` | Open lazygit in a source repository. |
-| `cubby config [--provenance]` | Print the effective host configuration. |
 
-The typical loop after registering a source is `cubby gitignore sync`, `cubby link`, then `cubby status` or `cubby doctor`. Selecting other profiles for one run looks like `cubby link --profiles work,personal` or `CUBBY_PROFILES=personal cubby link`.
+Command help is the canonical reference: `cubby --help`, each command's `--help`, and the help topic `cubby help exit-codes` describe every user-facing contract, and `cubby docs [manual|schema|reference]` supplements them with longer text.
+
+The typical loop after registering a source is `cubby gitignore sync`, `cubby link`, then `cubby status` or `cubby doctor`.
 
 
 ## Required external programs
 
-Only `cubby lazygit` runs an external program: [lazygit](https://github.com/jesseduffield/lazygit) must be on `PATH`. Every other command runs on its own.
+- [lazygit](https://github.com/jesseduffield/lazygit) must be on `PATH` for `cubby lazygit`, which hands it the terminal.
 
 
 ## Configuration
 
-cubby reads `.cubby.toml` from the current directory only, so run it from the host repository root. Each registered source directory must contain a `cubby.toml` that declares at least one profile. Profiles can also be chosen per invocation with `CUBBY_PROFILES`, `--profiles`, or `--profile`; `cubby config --help` documents the full precedence and every field, and `cubby config` prints the values in effect.
+cubby reads `.cubby.toml` from the current directory only, so run it from the host repository root. Each registered source directory must contain a `cubby.toml`. `cubby config --help` documents the load order, profile selection, and every field in both files.
 
 ```toml
 # host .cubby.toml
@@ -75,16 +74,3 @@ profiles = ["work"]
 name = "dotfiles"
 path = "../dotfiles"
 ```
-
-```toml
-# source cubby.toml
-profiles = ["work", "personal"]
-ignore = ["**/*.draft.*"]
-```
-
-
-## Non-goals
-
-- No `source add`, `source remove`, or `init` commands; edit the TOML files by hand.
-- No generic `git` or `exec` command.
-- No tagged release binaries and no documented `go install` path.
