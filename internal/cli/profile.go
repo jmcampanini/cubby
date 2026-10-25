@@ -2,7 +2,7 @@ package cli
 
 import "github.com/spf13/cobra"
 
-func profileCommand(streams commandIO) *cobra.Command {
+func profileCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "profile",
 		Short: "Profile commands",
@@ -16,7 +16,6 @@ selects; run without a subcommand this prints help.`,
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(profileListCommand(streams), profileEffectiveCommand(streams))
-	streams.bind(cmd)
+	cmd.AddCommand(profileListCommand(), profileEffectiveCommand())
 	return cmd
 }

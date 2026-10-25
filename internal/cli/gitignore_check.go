@@ -13,7 +13,7 @@ type gitignoreCheckEnvelope struct {
 	Missing []string `json:"missing"`
 }
 
-func gitignoreCheckCommand(streams commandIO) *cobra.Command {
+func gitignoreCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Report missing required .gitignore patterns",
@@ -45,7 +45,7 @@ The document is {"ok": bool, "missing": [...]}.`,
 					return err
 				}
 				if len(missing) > 0 {
-					return &ExitError{Code: 1}
+					return &exitError{Code: 1}
 				}
 				return nil
 			}
@@ -55,12 +55,11 @@ The document is {"ok": bool, "missing": [...]}.`,
 				}
 			}
 			if len(missing) > 0 {
-				return &ExitError{Code: 1}
+				return &exitError{Code: 1}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().Bool("json", false, "print .gitignore check result as JSON")
-	streams.bind(cmd)
 	return cmd
 }

@@ -24,7 +24,7 @@ type statusLink struct {
 	Reasons []string `json:"reasons,omitempty"`
 }
 
-func statusCommand(streams commandIO) *cobra.Command {
+func statusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Report linked profile files and drift",
@@ -73,7 +73,6 @@ The document is {"links": [...]}, each link carrying "state" ("linked" or
 		},
 	}
 	cmd.Flags().Bool("json", false, "print status as JSON")
-	streams.bind(cmd)
 	return cmd
 }
 

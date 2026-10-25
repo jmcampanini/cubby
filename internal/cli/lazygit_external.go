@@ -49,7 +49,7 @@ func normalizeExternalCommandError(command externalCommand, err error) error {
 		return nil
 	}
 
-	var exitErr *ExitError
+	var exitErr *exitError
 	if errors.As(err, &exitErr) {
 		return err
 	}
@@ -61,7 +61,7 @@ func normalizeExternalCommandError(command externalCommand, err error) error {
 	var execExitErr *exec.ExitError
 	if errors.As(err, &execExitErr) {
 		if code := execExitErr.ExitCode(); code >= 0 {
-			return &ExitError{Code: code}
+			return &exitError{Code: code}
 		}
 	}
 

@@ -2,8 +2,7 @@ package config
 
 import (
 	"fmt"
-
-	"github.com/jmcampanini/cubby/internal/output"
+	"strings"
 )
 
 // ValidateSelectedProfiles checks that selected profiles exist in registered sources.
@@ -21,33 +20,14 @@ func ValidateSelectedProfiles(project *Project, profiles []string) error {
 	unknown := make([]string, 0)
 	for _, profile := range profiles {
 		if _, ok := declared[profile]; !ok {
-			unknown = append(unknown, profile)
+			unknown = append(unknown, fmt.Sprintf("%q", profile))
 		}
 	}
 	if len(unknown) > 0 {
 		if len(unknown) == 1 {
-			return fmt.Errorf("selected profile %q is not declared by any registered source", unknown[0])
+			return fmt.Errorf("selected profile %s is not declared by any registered source", unknown[0])
 		}
-		return fmt.Errorf("selected profiles %s are not declared by any registered source", output.QuotedList(unknown))
+		return fmt.Errorf("selected profiles %s are not declared by any registered source", strings.Join(unknown, ", "))
 	}
 	return nil
-}
-
-// SourceSelectedProfiles returns selected profiles declared by the source.
-func SourceSelectedProfiles(source RegisteredSource, selected []string) []string {
-	allowed := make(map[string]struct{})
-	for _, profile := range NormalizeProfiles(source.Config.Profiles) {
-		allowed[profile] = struct{}{}
-	}
-	if len(allowed) == 0 {
-		return nil
-	}
-
-	profiles := make([]string, 0, len(selected))
-	for _, profile := range NormalizeProfiles(selected) {
-		if _, ok := allowed[profile]; ok {
-			profiles = append(profiles, profile)
-		}
-	}
-	return profiles
 }

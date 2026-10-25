@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func lazygitCommand(streams commandIO) *cobra.Command {
+func lazygitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lazygit",
 		Short: "Open lazygit in a source repo",
@@ -45,7 +45,6 @@ by a signal cubby exits 1 with an error on stderr.`,
 		},
 	}
 	cmd.Flags().String("source", "", "registered source name")
-	streams.bind(cmd)
 	return cmd
 }
 
@@ -54,7 +53,7 @@ func runLazygitInSource(source config.RegisteredSource) error {
 	if err := runExternalCommand(command); err != nil {
 		err = normalizeExternalCommandError(command, err)
 
-		var exitErr *ExitError
+		var exitErr *exitError
 		if errors.As(err, &exitErr) {
 			return err
 		}

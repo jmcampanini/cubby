@@ -4,11 +4,11 @@ import (
 	"github.com/jmcampanini/cubby/internal/config"
 	"github.com/jmcampanini/cubby/internal/linkops"
 	"github.com/jmcampanini/cubby/internal/output"
-	"github.com/jmcampanini/cubby/internal/projectfiles"
+	"github.com/jmcampanini/cubby/internal/profilefiles"
 	"github.com/spf13/cobra"
 )
 
-func unlinkCommand(streams commandIO) *cobra.Command {
+func unlinkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unlink",
 		Short: "Remove symlinks for selected profiles",
@@ -55,7 +55,6 @@ The document is {"dry_run": bool, "actions": [...]}, each action carrying
 		}
 		return unlinkProfilesWithOptions(cmd, project, profiles, unlinkRunOptions{DryRun: dryRun, JSON: jsonOutput})
 	}
-	streams.bind(cmd)
 	return cmd
 }
 
@@ -73,11 +72,11 @@ func unlinkProfilesWithOptions(cmd *cobra.Command, project *config.Project, prof
 		return err
 	}
 
-	discovered, err := projectfiles.Discover(project, profiles)
+	discovered, err := profilefiles.DiscoverProject(project, profiles)
 	if err != nil {
 		return err
 	}
-	plan, err := linkops.PlanUnlink(project.HostRoot, projectfiles.LinkSources(discovered))
+	plan, err := linkops.PlanUnlink(project.HostRoot, profilefiles.LinkSources(discovered))
 	if err != nil {
 		return err
 	}

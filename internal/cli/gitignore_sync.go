@@ -14,7 +14,7 @@ type gitignoreSyncEnvelope struct {
 	Added   []string `json:"added"`
 }
 
-func gitignoreSyncCommand(streams commandIO) *cobra.Command {
+func gitignoreSyncCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Append missing required .gitignore patterns",
@@ -59,6 +59,5 @@ The document is {"changed": bool, "added": [...]}.`,
 		},
 	}
 	cmd.Flags().Bool("json", false, "print .gitignore sync result as JSON")
-	streams.bind(cmd)
 	return cmd
 }

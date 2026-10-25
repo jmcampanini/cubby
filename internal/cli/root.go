@@ -2,28 +2,29 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
 )
 
-// Execute builds and runs the command tree.
-func Execute(out, errOut io.Writer) error {
-	return NewRootCommand(out, errOut).Execute()
+// Execute runs the command tree and returns the process exit status.
+func Execute(out, errOut io.Writer) int {
+	err := newRootCommand(out, errOut).Execute()
+	if err == nil {
+		return 0
+	}
+	var exitErr *exitError
+	if errors.As(err, &exitErr) {
+		return exitErr.Code
+	}
+	_, _ = fmt.Fprintf(errOut, "cubby: error: %v\n", err)
+	return 1
 }
 
-type commandIO struct {
-	errOut io.Writer
-	out    io.Writer
-}
-
-func (streams commandIO) bind(cmd *cobra.Command) {
-	cmd.SetOut(streams.out)
-	cmd.SetErr(streams.errOut)
-}
-
-// NewRootCommand builds the cubby command tree.
-func NewRootCommand(out, errOut io.Writer) *cobra.Command {
+// newRootCommand builds the cubby command tree.
+func newRootCommand(out, errOut io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cubby",
 		Short: "Layer profile-scoped dotfiles into a host repo",
@@ -54,8 +55,8 @@ prints longer manual, schema, and reference text.`,
 		SilenceUsage:       true,
 		SilenceErrors:      true,
 	}
-	streams := commandIO{out: out, errOut: errOut}
-	streams.bind(cmd)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
 	// Register --help and --version before Find strips flags from the
 	// arguments. Cobra otherwise adds them during execute, after Find has
 	// already treated an unregistered --help or --version as taking the next
@@ -64,18 +65,18 @@ prints longer manual, schema, and reference text.`,
 	cmd.InitDefaultVersionFlag()
 
 	cmd.AddCommand(
-		linkCommand(streams),
-		unlinkCommand(streams),
-		pruneCommand(streams),
-		statusCommand(streams),
-		doctorCommand(streams),
-		profileCommand(streams),
-		sourceCommand(streams),
-		gitignoreCommand(streams),
-		lazygitCommand(streams),
-		configCommand(streams),
-		docsCommand(streams),
-		exitCodesTopic(streams),
+		linkCommand(),
+		unlinkCommand(),
+		pruneCommand(),
+		statusCommand(),
+		doctorCommand(),
+		profileCommand(),
+		sourceCommand(),
+		gitignoreCommand(),
+		lazygitCommand(),
+		configCommand(),
+		docsCommand(),
+		exitCodesTopic(),
 	)
 
 	return cmd

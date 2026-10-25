@@ -21,7 +21,7 @@ type pruneRemoved struct {
 	Target string `json:"target"`
 }
 
-func pruneCommand(streams commandIO) *cobra.Command {
+func pruneCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Remove dangling Cubby symlinks",
@@ -85,7 +85,6 @@ The document is {"removed": [{"path", "source", "target"}]}.`,
 		},
 	}
 	cmd.Flags().Bool("json", false, "print prune results as JSON")
-	streams.bind(cmd)
 	return cmd
 }
 

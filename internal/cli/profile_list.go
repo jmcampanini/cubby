@@ -11,7 +11,7 @@ type profileListEnvelope struct {
 	Profiles []string `json:"profiles"`
 }
 
-func profileListCommand(streams commandIO) *cobra.Command {
+func profileListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List profiles declared by registered sources",
@@ -45,6 +45,5 @@ The document is {"profiles": [...]}.`,
 		},
 	}
 	cmd.Flags().Bool("json", false, "print profile inventory as JSON")
-	streams.bind(cmd)
 	return cmd
 }

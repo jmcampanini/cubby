@@ -2,8 +2,8 @@ package cli
 
 import "github.com/spf13/cobra"
 
-func exitCodesTopic(streams commandIO) *cobra.Command {
-	cmd := &cobra.Command{
+func exitCodesTopic() *cobra.Command {
+	return &cobra.Command{
 		Use:   "exit-codes",
 		Short: "Exit codes and error categories",
 		Long: `cubby exits 0, exits 1, or passes through the exit status of lazygit:
@@ -34,6 +34,4 @@ result the exit status does.`,
 			return cmd.Help()
 		},
 	}
-	streams.bind(cmd)
-	return cmd
 }

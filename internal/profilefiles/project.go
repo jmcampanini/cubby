@@ -1,5 +1,4 @@
-// Package projectfiles discovers selected files across registered sources.
-package projectfiles
+package profilefiles
 
 import (
 	"fmt"
@@ -8,28 +7,27 @@ import (
 
 	"github.com/jmcampanini/cubby/internal/config"
 	"github.com/jmcampanini/cubby/internal/linkops"
-	"github.com/jmcampanini/cubby/internal/profilefiles"
 )
 
-// Discovery holds the profile files found in one registered source.
-type Discovery struct {
+// SourceFiles holds the profile files found in one registered source.
+type SourceFiles struct {
 	Source config.RegisteredSource
-	Files  []profilefiles.File
+	Files  []File
 }
 
-// Discover finds selected profile files in registration order.
-func Discover(project *config.Project, profiles []string) ([]Discovery, error) {
-	discovered := make([]Discovery, 0, len(project.Sources))
+// DiscoverProject finds selected profile files in every registered source, in registration order.
+func DiscoverProject(project *config.Project, profiles []string) ([]SourceFiles, error) {
+	discovered := make([]SourceFiles, 0, len(project.Sources))
 	for _, source := range project.Sources {
 		discoveryRoot, err := sourceDiscoveryRoot(source.ResolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("resolve discovery root for source %q: %w", source.Name, err)
 		}
-		files, err := profilefiles.Discover(discoveryRoot, source.Config.Profiles, config.SourceSelectedProfiles(source, profiles), source.Config.Ignore)
+		files, err := Discover(discoveryRoot, source.Config.Profiles, sourceSelectedProfiles(source, profiles), source.Config.Ignore)
 		if err != nil {
 			return nil, fmt.Errorf("discover profile files for source %q: %w", source.Name, err)
 		}
-		discovered = append(discovered, Discovery{Source: source, Files: files})
+		discovered = append(discovered, SourceFiles{Source: source, Files: files})
 	}
 	return discovered, nil
 }
@@ -49,8 +47,26 @@ func sourceDiscoveryRoot(root string) (string, error) {
 	return resolved, nil
 }
 
+func sourceSelectedProfiles(source config.RegisteredSource, selected []string) []string {
+	allowed := make(map[string]struct{})
+	for _, profile := range config.NormalizeProfiles(source.Config.Profiles) {
+		allowed[profile] = struct{}{}
+	}
+	if len(allowed) == 0 {
+		return nil
+	}
+
+	profiles := make([]string, 0, len(selected))
+	for _, profile := range config.NormalizeProfiles(selected) {
+		if _, ok := allowed[profile]; ok {
+			profiles = append(profiles, profile)
+		}
+	}
+	return profiles
+}
+
 // LinkSources converts discovered files into link planning inputs.
-func LinkSources(discovered []Discovery) []linkops.SourceFiles {
+func LinkSources(discovered []SourceFiles) []linkops.SourceFiles {
 	sources := make([]linkops.SourceFiles, 0, len(discovered))
 	for _, item := range discovered {
 		relPaths := make([]string, 0, len(item.Files))

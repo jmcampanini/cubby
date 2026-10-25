@@ -10,7 +10,7 @@ import (
 	"github.com/jmcampanini/cubby/internal/hostlinks"
 	"github.com/jmcampanini/cubby/internal/linkops"
 	"github.com/jmcampanini/cubby/internal/output"
-	"github.com/jmcampanini/cubby/internal/projectfiles"
+	"github.com/jmcampanini/cubby/internal/profilefiles"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ type doctorIssue struct {
 	Reason  string   `json:"reason,omitempty"`
 }
 
-func doctorCommand(streams commandIO) *cobra.Command {
+func doctorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Run Cubby health checks",
@@ -92,14 +92,13 @@ drift, or conflict) and the fields shown on its text line.`,
 				return err
 			}
 			if len(issues) > 0 {
-				return &ExitError{Code: 1}
+				return &exitError{Code: 1}
 			}
 			return nil
 		},
 	}
 	addProfileFlag(cmd)
 	cmd.Flags().Bool("json", false, "print health checks as JSON")
-	streams.bind(cmd)
 	return cmd
 }
 
@@ -160,11 +159,11 @@ func collectDoctorIssues(diagnostic *config.DiagnosticProject) ([]doctorIssue, e
 	}
 
 	if len(validRequested) > 0 {
-		discovered, err := projectfiles.Discover(project, validRequested)
+		discovered, err := profilefiles.DiscoverProject(project, validRequested)
 		if err != nil {
 			return nil, err
 		}
-		plan, err := linkops.PlanLink(diagnostic.HostRoot, projectfiles.LinkSources(discovered), linkops.PlanOptions{
+		plan, err := linkops.PlanLink(diagnostic.HostRoot, profilefiles.LinkSources(discovered), linkops.PlanOptions{
 			IgnoreConflicts: false,
 			CaseSensitive:   diagnostic.Host.CaseSensitive,
 		})

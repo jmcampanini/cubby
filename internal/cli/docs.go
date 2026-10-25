@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func docsCommand(streams commandIO) *cobra.Command {
-	cmd := &cobra.Command{
+func docsCommand() *cobra.Command {
+	return &cobra.Command{
 		Use:   "docs [manual|schema|reference]",
 		Short: "Print Cubby documentation",
 		Long: `Print built-in long-form documentation on stdout: 'manual' (the default)
@@ -28,8 +28,6 @@ canonical contract for each command; docs supplements it.`,
 			return err
 		},
 	}
-	streams.bind(cmd)
-	return cmd
 }
 
 func docsContent(topic string) string {

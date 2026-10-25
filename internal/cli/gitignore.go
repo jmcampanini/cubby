@@ -1,10 +1,8 @@
 package cli
 
-import (
-	"github.com/spf13/cobra"
-)
+import "github.com/spf13/cobra"
 
-func gitignoreCommand(streams commandIO) *cobra.Command {
+func gitignoreCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gitignore",
 		Short: "Check or update required host .gitignore patterns",
@@ -18,7 +16,6 @@ them; run without a subcommand this prints help.
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(gitignoreCheckCommand(streams), gitignoreSyncCommand(streams))
-	streams.bind(cmd)
+	cmd.AddCommand(gitignoreCheckCommand(), gitignoreSyncCommand())
 	return cmd
 }

@@ -11,7 +11,7 @@ type profileEffectiveEnvelope struct {
 	Profiles []string `json:"profiles"`
 }
 
-func profileEffectiveCommand(streams commandIO) *cobra.Command {
+func profileEffectiveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "effective",
 		Short: "Show the effective profile list for the current invocation",
@@ -65,6 +65,5 @@ selected.`,
 	}
 	addProfileFlag(cmd)
 	cmd.Flags().Bool("json", false, "print effective profiles as JSON")
-	streams.bind(cmd)
 	return cmd
 }

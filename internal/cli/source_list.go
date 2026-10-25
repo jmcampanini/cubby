@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmcampanini/cubby/internal/output"
-
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/jmcampanini/cubby/internal/config"
+	"github.com/jmcampanini/cubby/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,7 @@ type sourceListEnvelope struct {
 	Sources []SourceListItem `json:"sources"`
 }
 
-func sourceListCommand(streams commandIO) *cobra.Command {
+func sourceListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List registered source repositories",
@@ -57,7 +56,6 @@ The document is {"sources": [{"name", "path", "profiles"}]}.`,
 		},
 	}
 	cmd.Flags().Bool("json", false, "print source inventory as JSON")
-	streams.bind(cmd)
 	return cmd
 }
 

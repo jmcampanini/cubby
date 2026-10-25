@@ -2,7 +2,7 @@ package cli
 
 import "github.com/spf13/cobra"
 
-func sourceCommand(streams commandIO) *cobra.Command {
+func sourceCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "source",
 		Short: "Source repository commands",
@@ -16,7 +16,6 @@ without a subcommand this prints help.`,
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(sourceListCommand(streams))
-	streams.bind(cmd)
+	cmd.AddCommand(sourceListCommand())
 	return cmd
 }

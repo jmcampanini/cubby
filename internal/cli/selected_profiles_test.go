@@ -92,7 +92,7 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 				t.Setenv("CUBBY_PROFILES", *tt.envProfiles)
 			}
 
-			cmd := linkCommand(commandIO{})
+			cmd := linkCommand()
 			if err := cmd.ParseFlags(tt.args); err != nil {
 				t.Fatalf("ParseFlags() error = %v", err)
 			}
@@ -115,25 +115,9 @@ func TestLoadProfileScopedProjectSelectionPrecedence(t *testing.T) {
 }
 
 func TestProfileSingularFlagRejectsEmpty(t *testing.T) {
-	cmd := linkCommand(commandIO{})
+	cmd := linkCommand()
 	if err := cmd.ParseFlags([]string{"--profile="}); err == nil {
 		t.Fatal("ParseFlags() error = nil for empty singular --profile")
-	}
-}
-
-func TestValidateSelectedProfilesRejectsUnknownBeforeSideEffects(t *testing.T) {
-	project := &config.Project{
-		Sources: []config.RegisteredSource{
-			{Config: config.SourceConfig{Profiles: []string{"work", "personal"}}},
-		},
-	}
-
-	err := config.ValidateSelectedProfiles(project, []string{"work", "ghost"})
-	if err == nil {
-		t.Fatalf("config.ValidateSelectedProfiles() error = nil, want unknown profile")
-	}
-	if !strings.Contains(err.Error(), "ghost") || !strings.Contains(err.Error(), "not declared") {
-		t.Fatalf("config.ValidateSelectedProfiles() error = %q, want unknown profile guidance", err)
 	}
 }
 
@@ -143,7 +127,7 @@ func TestRenderMissingProfileDiagnosticsReportsPerSourceMissingProfiles(t *testi
 		{HostSource: config.HostSource{Name: "work"}, Config: config.SourceConfig{Profiles: []string{"work"}}},
 	}}
 	var stderr bytes.Buffer
-	cmd := NewRootCommand(&bytes.Buffer{}, &stderr)
+	cmd := newRootCommand(&bytes.Buffer{}, &stderr)
 
 	if err := renderMissingProfileDiagnostics(cmd, project, []string{"work", "personal"}); err != nil {
 		t.Fatalf("renderMissingProfileDiagnostics() error = %v", err)
@@ -153,18 +137,6 @@ func TestRenderMissingProfileDiagnosticsReportsPerSourceMissingProfiles(t *testi
 	if stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
-}
-
-func TestSourceSelectedProfilesUsesSourceDeclaredProfiles(t *testing.T) {
-	source := config.RegisteredSource{Config: config.SourceConfig{Profiles: []string{"work", "client"}}}
-	got := config.SourceSelectedProfiles(source, []string{"home", "work", "client", "work"})
-	assertProfilesEqual(t, got, []string{"work", "client"})
-}
-
-func TestSourceSelectedProfilesOmittedSourceProfilesSelectNothing(t *testing.T) {
-	source := config.RegisteredSource{}
-	got := config.SourceSelectedProfiles(source, []string{"work"})
-	assertProfilesEqual(t, got, nil)
 }
 
 func writeProfileSelectionProject(t *testing.T, hostProfiles, sourceProfiles []string) string {

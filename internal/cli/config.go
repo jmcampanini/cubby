@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func configCommand(streams commandIO) *cobra.Command {
+func configCommand() *cobra.Command {
 	var showProvenance bool
 	var validatePath string
 	var validateSource bool
@@ -91,7 +91,6 @@ status 1.`,
 	cmd.Flags().BoolVar(&showProvenance, "provenance", false, "include config provenance")
 	cmd.Flags().StringVar(&validatePath, "validate", "", "validate a config file and exit")
 	cmd.Flags().BoolVar(&validateSource, "source-config", false, "with --validate, treat PATH as a source cubby.toml")
-	streams.bind(cmd)
 	return cmd
 }
 

@@ -8,11 +8,11 @@ import (
 	"github.com/jmcampanini/cubby/internal/config"
 	"github.com/jmcampanini/cubby/internal/linkops"
 	"github.com/jmcampanini/cubby/internal/output"
-	"github.com/jmcampanini/cubby/internal/projectfiles"
+	"github.com/jmcampanini/cubby/internal/profilefiles"
 	"github.com/spf13/cobra"
 )
 
-func linkCommand(streams commandIO) *cobra.Command {
+func linkCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: "Create symlinks for selected profiles",
@@ -74,7 +74,6 @@ conflict nothing was created and the exit status is 1.`,
 		}
 		return linkProfilesWithOptions(cmd, project, profiles, linkRunOptions{DryRun: dryRun, JSON: jsonOutput})
 	}
-	streams.bind(cmd)
 	return cmd
 }
 
@@ -92,11 +91,11 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 		return err
 	}
 
-	discovered, err := projectfiles.Discover(project, profiles)
+	discovered, err := profilefiles.DiscoverProject(project, profiles)
 	if err != nil {
 		return err
 	}
-	plan, err := linkops.PlanLink(project.HostRoot, projectfiles.LinkSources(discovered), linkops.PlanOptions{
+	plan, err := linkops.PlanLink(project.HostRoot, profilefiles.LinkSources(discovered), linkops.PlanOptions{
 		IgnoreConflicts: project.Host.IgnoreConflicts,
 		CaseSensitive:   project.Host.CaseSensitive,
 	})
@@ -110,7 +109,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 			if err := writeCommandJSON(cmd, output.LinkActionsEnvelope(opts.DryRun, plan.Actions)); err != nil {
 				return err
 			}
-			return &ExitError{Code: 1}
+			return &exitError{Code: 1}
 		}
 		if !opts.DryRun {
 			if err := linkops.ApplyLink(plan); err != nil {
@@ -125,7 +124,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 			return err
 		}
 		if plan.HasFatalConflicts() {
-			return &ExitError{Code: 1}
+			return &exitError{Code: 1}
 		}
 		return nil
 	}
@@ -134,7 +133,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 		if err := linkops.RenderActions(out, plan.FatalConflicts()); err != nil {
 			return err
 		}
-		return &ExitError{Code: 1}
+		return &exitError{Code: 1}
 	}
 	if err := linkops.ApplyLink(plan); err != nil {
 		return err

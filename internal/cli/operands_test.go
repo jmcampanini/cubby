@@ -14,7 +14,7 @@ import (
 // help. Cobra validates operands before runners, so the presence of a
 // validator is the whole proof that rejected operands reach no command work.
 func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
-	root := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	root := newRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd()
 

@@ -45,7 +45,7 @@ func TestExitCodesTopicPrintsSameHelpFromBothEntryPoints(t *testing.T) {
 }
 
 func TestEveryApplicationCommandHasWrappedLongHelp(t *testing.T) {
-	root := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	root := newRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
 
 	var visit func(*cobra.Command)
 	visit = func(command *cobra.Command) {
@@ -72,7 +72,7 @@ func TestEveryApplicationCommandHasWrappedLongHelp(t *testing.T) {
 func executeForTest(args ...string) (stdout string, stderr string, err error) {
 	var out bytes.Buffer
 	var errOut bytes.Buffer
-	cmd := NewRootCommand(&out, &errOut)
+	cmd := newRootCommand(&out, &errOut)
 	cmd.SetArgs(args)
 	err = cmd.Execute()
 	return out.String(), errOut.String(), err

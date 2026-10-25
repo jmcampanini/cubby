@@ -144,18 +144,18 @@ func TestLazygitRunnerExitErrorPreservesExitCode(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one")
 	mustChdir(t, host)
 	runner := installFakeExternalRunner(t)
-	runner.err = &ExitError{Code: 42}
+	runner.err = &exitError{Code: 42}
 
 	_, _, err := executeForTest("lazygit")
 	if err == nil {
-		t.Fatalf("lazygit error = nil, want ExitError")
+		t.Fatalf("lazygit error = nil, want exitError")
 	}
-	var exitErr *ExitError
+	var exitErr *exitError
 	if !errors.As(err, &exitErr) {
-		t.Fatalf("lazygit error = %T %v, want ExitError", err, err)
+		t.Fatalf("lazygit error = %T %v, want exitError", err, err)
 	}
 	if exitErr.Code != 42 {
-		t.Fatalf("ExitError code = %d, want 42", exitErr.Code)
+		t.Fatalf("exitError code = %d, want 42", exitErr.Code)
 	}
 	if err.Error() != "exit status 42" {
 		t.Fatalf("lazygit error = %q, want unwrapped exit status", err)
