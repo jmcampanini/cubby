@@ -48,11 +48,11 @@ To upgrade, run `git pull`, rebuild with `mise install && mise run build`, and r
 | `cubby doctor [--json]` | Report health issues and exit 1 when there are any. |
 | `cubby unlink [--dry-run]` | Remove the links `link` created for the selected profiles. |
 | `cubby prune [--json]` | Remove managed links whose target no longer exists. |
-| `cubby profile effective` | Print the profiles this invocation would use. |
+| `cubby profile effective [--json]` | Print the profiles this invocation would use. |
 | `cubby source list [--json]` | List registered sources. |
 | `cubby lazygit [--source NAME]` | Open lazygit in a source repository. |
 
-Command help is the canonical reference: `cubby --help`, each command's `--help`, and the help topics `cubby help exit-codes` and `cubby docs [manual|schema|reference]` describe every user-facing contract.
+Command help is the canonical reference: `cubby --help`, each command's `--help`, and the help topic `cubby help exit-codes` describe every user-facing contract, and `cubby docs [manual|schema|reference]` supplements them with longer text.
 
 The typical loop after registering a source is `cubby gitignore sync`, `cubby link`, then `cubby status` or `cubby doctor`.
 
@@ -64,7 +64,7 @@ The typical loop after registering a source is `cubby gitignore sync`, `cubby li
 
 ## Configuration
 
-cubby reads `.cubby.toml` from the current directory only, so run it from the host repository root. Each registered source directory must contain a `cubby.toml` that declares at least one profile. `cubby config --help` documents the load order, profile selection, and every field in both files.
+cubby reads `.cubby.toml` from the current directory only, so run it from the host repository root. Each registered source directory must contain a `cubby.toml`. `cubby config --help` documents the load order, profile selection, and every field in both files.
 
 ```toml
 # host .cubby.toml
