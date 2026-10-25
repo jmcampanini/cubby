@@ -1,4 +1,4 @@
 - Run tasks with `mise run <task>`; do not call `go`, `golangci-lint`, or similar tools directly.
 - Run `mise run check` before declaring work done.
-- Bump a tool with `mise upgrade --bump <tool>`, run `mise lock` and `mise run check`, and commit both files.
+- Bump a tool with `mise upgrade --bump <tool>`, run `mise lock` and `mise run check`, and commit `mise.toml`, `mise.lock`, and any changes under `.mise/locks/`.
 - Keep command help the canonical user-facing documentation and the README a landing page; keep both consistent with observable behavior.
