@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -32,7 +33,9 @@ func Execute(args []string, out, errOut io.Writer) int {
 	if errors.As(err, &exitErr) {
 		return exitErr.Code
 	}
-	_, _ = fmt.Fprintf(errOut, "cubby: %v\n", err)
+	// The diagnostic is one line, so a message that carries newlines, such
+	// as a flag name or path typed with one, is joined with spaces.
+	_, _ = fmt.Fprintf(errOut, "cubby: %s\n", strings.ReplaceAll(err.Error(), "\n", " "))
 	if runnerReached {
 		return 1
 	}

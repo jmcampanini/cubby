@@ -10,22 +10,19 @@ func workflowTopic() *cobra.Command {
 files of the selected profiles into a host repository. The usual loop:
 
   1. Register sources. Put a .cubby.toml at the host root naming the
-     selected profiles and one [[source]] entry per source repository.
-     'cubby config --help' describes every key, and 'cubby config'
-     prints the configuration an invocation would use.
+     selected profiles and one [[source]] entry per source repository;
+     'cubby config --help' describes every key.
   2. Declare profiles. Put a cubby.toml in each source repository naming
      the profiles it provides, and give each profile-scoped file a
-     .<profile> name segment as 'cubby link --help' describes.
-  3. Keep generated paths out of git. 'cubby gitignore sync' appends the
-     patterns the host .gitignore needs.
-  4. Link. 'cubby link' creates the symlinks for the selected profiles;
-     its help explains how to preview the plan first and how conflicts
-     are handled. 'cubby profile effective' shows which profiles apply.
-  5. Watch for drift. 'cubby status' lists every managed link, and
-     'cubby doctor' checks the whole setup and exits 1 on any issue.
-  6. Clean up. 'cubby unlink' removes the links for the selected
-     profiles, and 'cubby prune' removes links whose target is gone.
+     .<profile> name segment; 'cubby link --help' describes the grammar.
+  3. Keep generated paths out of git with 'cubby gitignore sync'.
+  4. Link the selected profiles with 'cubby link'; 'cubby profile
+     effective' shows which profiles that is.
+  5. Watch for drift with 'cubby status' and 'cubby doctor'.
+  6. Clean up with 'cubby unlink' for selected profiles and 'cubby prune'
+     for links whose target is gone.
 
-Run every command from the host root; 'cubby --help' explains why.`,
+Each command's --help states its contract. Run every command from the
+host root; 'cubby --help' explains why.`,
 	)
 }

@@ -94,6 +94,7 @@ func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 	}{
 		{name: "unknown command", args: []string{"bogus"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
 		{name: "unknown flag", args: []string{"status", "--bogus"}, want: "cubby: unknown flag: --bogus\n"},
+		{name: "newline in the message", args: []string{"status", "--bogus\nflag"}, want: "cubby: unknown flag: --bogus flag\n"},
 		{name: "color outside its set", args: []string{"--color=bold", "source", "list"}, want: `cubby: invalid argument "bold" for "--color" flag: unknown color mode "bold"; use auto, always, or never` + "\n"},
 	}
 
