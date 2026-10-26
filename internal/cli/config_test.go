@@ -3,6 +3,7 @@ package cli
 import (
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -182,8 +183,9 @@ func TestConfigHelpNamesEveryConfigKey(t *testing.T) {
 			if key == "" {
 				t.Fatalf("%s.%s has no toml tag", typ.Name(), typ.Field(i).Name)
 			}
-			if !strings.Contains(long, key) {
-				t.Errorf("config help does not name key %q of %s", key, typ.Name())
+			row := regexp.MustCompile(`(?m)^ +(\[\[)?` + regexp.QuoteMeta(key) + `(\]\])? `)
+			if !row.MatchString(long) {
+				t.Errorf("config help has no row for key %q of %s", key, typ.Name())
 			}
 		}
 	}

@@ -19,7 +19,8 @@ func Execute(args []string, out, errOut io.Writer) int {
 	// Cobra resolves the command, parses flags, and validates Args before it
 	// runs this hook, so an error returned while the hook has not fired is a
 	// usage error. Cobra validates required flags and flag groups after the
-	// hook; no command declares either.
+	// hook, and runs only the nearest PersistentPreRun in the tree, so no
+	// command declares required flags, flag groups, or its own hook.
 	runnerReached := false
 	cmd.PersistentPreRun = func(*cobra.Command, []string) { runnerReached = true }
 
@@ -57,14 +58,13 @@ and never accesses the network.
 
 No command prompts. Inventory, action, and diagnostic commands accept
 --json; each command's help states its output contract. The only styled
-output cubby renders is the 'source list' table header, governed by
---color: auto (the default) styles stdout only when it is a terminal,
-TERM is not dumb, and NO_COLOR is unset or empty; always and never
-override that detection; --json output never carries escapes. Only
-'cubby lazygit' runs an external program: it starts lazygit from PATH in
-a source directory and hands it the terminal, so it is the one command
+output cubby renders is the 'source list' table header. Only 'cubby
+lazygit' runs an external program: it starts lazygit from PATH in a
+source directory and hands it the terminal, so it is the one command
 that needs an interactive terminal. Help topics are read with
 'cubby help <topic>'.
+
+` + colorModeHelp + `
 
 Common tasks:
   Cover generated paths in .gitignore:  cubby gitignore sync

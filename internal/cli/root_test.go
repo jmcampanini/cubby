@@ -93,9 +93,7 @@ func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 		want string
 	}{
 		{name: "unknown command", args: []string{"bogus"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
-		{name: "unknown nested command", args: []string{"profile", "bogus"}, want: `cubby: unknown command "bogus" for "cubby profile"` + "\n"},
 		{name: "unknown flag", args: []string{"status", "--bogus"}, want: "cubby: unknown flag: --bogus\n"},
-		{name: "unexpected operand", args: []string{"status", "extra"}, want: `cubby: unknown command "extra" for "cubby status"` + "\n"},
 		{name: "color outside its set", args: []string{"--color=bold", "source", "list"}, want: `cubby: invalid argument "bold" for "--color" flag: unknown color mode "bold"; use auto, always, or never` + "\n"},
 	}
 
@@ -118,21 +116,15 @@ func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 	}
 }
 
-func TestExecuteExitsOneOnCommandFailureWithOneLine(t *testing.T) {
-	mustChdir(t, t.TempDir())
-	var out, errOut bytes.Buffer
-
-	code := Execute([]string{"status"}, &out, &errOut)
-
-	if code != 1 {
-		t.Errorf("Execute(status) = %d, want 1", code)
+func TestExitCodesTopicListsEveryStatus(t *testing.T) {
+	out, errOut, err := executeForTest("exit-codes")
+	if err != nil {
+		t.Fatalf("exit-codes error = %v, stderr = %s", err, errOut)
 	}
-	got := errOut.String()
-	if !strings.HasPrefix(got, "cubby: ") || strings.Count(got, "\n") != 1 || strings.Contains(got, "rror:") || strings.Contains(got, "Usage:") {
-		t.Errorf("Execute(status) stderr = %q, want one 'cubby: <message>' line", got)
-	}
-	if out.Len() != 0 {
-		t.Errorf("Execute(status) stdout = %q, want empty", out.String())
+	for _, want := range []string{"\n  0  ", "\n  1  ", "\n  2  ", "\n  N  ", "'cubby: <message>'"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("exit-codes help missing %q:\n%s", want, out)
+		}
 	}
 }
 

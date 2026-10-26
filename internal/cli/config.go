@@ -37,9 +37,7 @@ read only from the file.
 ` + hostRootHelp + `
 
 Host .cubby.toml keys:
-  profiles          Profile names to select; may be empty. Entries are
-                    trimmed, blanks dropped, and the first occurrence of
-                    a duplicate kept.
+  profiles          Profile names to select; may be empty.
   env_profiles      Name of an environment variable whose comma-separated
                     value is appended to the selection when it is set.
   ignore_conflicts  Bool, default false: turn link conflicts into SKIP
@@ -49,8 +47,9 @@ Host .cubby.toml keys:
   [[source]]        One table per source repository, with keys:
     name            Letters, digits, underscores, and dashes; unique
                     within the host.
-    path            Absolute, ~/..., or relative to the host root; must be
-                    an existing directory holding a cubby.toml.
+    path            Absolute, ~/..., or relative to the host root; a
+                    directory holding a cubby.toml. Commands that load
+                    sources fail when it is missing.
 
 Source cubby.toml keys:
   profiles          Profile names the source provides; at least one.

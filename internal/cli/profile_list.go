@@ -21,7 +21,9 @@ selected profile must belong to; it does not depend on the current
 selection.
 
 ` + jsonContractHelp + `
-The document is {"profiles": [...]}.`,
+The document is {"profiles": [...]}.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

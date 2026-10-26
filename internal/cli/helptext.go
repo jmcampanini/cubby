@@ -54,10 +54,14 @@ sources must load.`
 
 const noPromptHelp = `This command never prompts and works without a terminal.`
 
-const jsonContractHelp = noPromptHelp + ` --json writes one JSON
-object on a single line to stdout and nothing else to stdout; diagnostics
-still go to stderr, the output contains no terminal escapes, and the exit
-status is the same as without --json.`
+const jsonContractHelp = `--json writes one JSON object on a single line to stdout and nothing else
+to stdout; diagnostics still go to stderr, the output contains no
+terminal escapes, and the exit status is the same as without --json.`
+
+const colorModeHelp = `--color decides whether stdout is styled: auto (the default) styles it
+only when stdout is a terminal, TERM is not dumb, and NO_COLOR is unset
+or empty; always and never override that detection; --json output never
+carries escapes.`
 
 const commandGroupHelp = `Run without a subcommand this prints help on stdout and reads nothing;
 each subcommand's --help states its own contract.`

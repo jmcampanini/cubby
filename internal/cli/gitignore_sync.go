@@ -20,15 +20,16 @@ func gitignoreSyncCommand() *cobra.Command {
 		Short: "Append missing required .gitignore patterns",
 		Long: `Append each missing required pattern to .gitignore at the host root,
 creating the file when absent, and print each appended pattern on stdout,
-one per line.
-Existing lines are never removed, reordered, or rewritten; when the file
-lacks a trailing newline one is added before the new patterns. Exit
-status is 0 whether or not anything was appended.
+one per line. Existing lines are never removed, reordered, or rewritten;
+when the file lacks a trailing newline one is added before the new
+patterns. Exit status is 0 whether or not anything was appended.
 
 ` + gitignorePatternsHelp + `
 
 ` + jsonContractHelp + `
-The document is {"changed": bool, "added": [...]}.`,
+The document is {"changed": bool, "added": [...]}.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

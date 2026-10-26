@@ -7,11 +7,9 @@ import (
 	"github.com/charmbracelet/x/term"
 )
 
-type terminalCheck func() error
-
 // requireInteractiveTerminal checks every capability lazygit needs before it
 // starts. Tests replace it the way they replace runExternalCommand.
-var requireInteractiveTerminal terminalCheck = productionInteractiveTerminal
+var requireInteractiveTerminal = productionInteractiveTerminal
 
 // productionInteractiveTerminal checks the stream lazygit reads, the stream
 // it draws on, and the cursor control TERM advertises, each on its own.

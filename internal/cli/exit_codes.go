@@ -24,15 +24,16 @@ func exitCodesTopic() *cobra.Command {
      least one missing pattern, and 'link' with a fatal conflict, with
      or without --dry-run or --json.
   2  A usage error: an unknown command, flag, or operand, operands that
-     do not fit the command's grammar, or a flag value outside its fixed
-     set, such as --color=bold or an empty --profile.
+     do not fit the command's grammar, a flag missing its value, or a
+     flag value outside its fixed set, such as --color=bold or an empty
+     --profile.
   N  'lazygit' exits with lazygit's own exit status once lazygit has
      started, printing nothing of its own. If lazygit is terminated by a
      signal, cubby exits 1 with an error on stderr.
 
-Apart from the three silent exits, every failure prints exactly one line
-on stderr in the form 'cubby: <message>' and no usage text. --json never
-changes the exit status; the JSON document reports the same result the
-exit status does.`,
+Apart from the three silent exits and lazygit's own exit status, every
+failure prints exactly one line on stderr in the form 'cubby: <message>'
+and no usage text. --json never changes the exit status; the JSON
+document reports the same result the exit status does.`,
 	)
 }

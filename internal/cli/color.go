@@ -42,8 +42,7 @@ func addColorFlag(cmd *cobra.Command) {
 }
 
 // styledOutput reports whether cmd may style what it writes to out under the
-// --color mode in effect. auto detects out on its own: it must be a terminal,
-// TERM must not be dumb, and NO_COLOR must be unset or empty.
+// --color mode in effect.
 func styledOutput(cmd *cobra.Command, out io.Writer) bool {
 	switch colorMode(cmd.Flag(colorFlagName).Value.String()) {
 	case colorAlways:
@@ -51,14 +50,10 @@ func styledOutput(cmd *cobra.Command, out io.Writer) bool {
 	case colorNever:
 		return false
 	default:
-		return streamSupportsColor(out, os.Getenv("TERM"), os.Getenv("NO_COLOR"))
+		if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+			return false
+		}
+		file, ok := out.(interface{ Fd() uintptr })
+		return ok && term.IsTerminal(file.Fd())
 	}
-}
-
-func streamSupportsColor(out io.Writer, termName, noColor string) bool {
-	if noColor != "" || termName == "dumb" {
-		return false
-	}
-	file, ok := out.(interface{ Fd() uintptr })
-	return ok && term.IsTerminal(file.Fd())
 }

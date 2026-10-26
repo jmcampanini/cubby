@@ -26,7 +26,9 @@ exit status is still 0.
 
 ` + jsonContractHelp + `
 The document is {"profiles": [...]}, with an empty array when nothing is
-selected.`,
+selected.
+
+` + noPromptHelp,
 		Example: `  # with profiles = ["work"] and env_profiles = "CUBBY_EXTRA" in .cubby.toml
   cubby profile effective                          # -> work
   CUBBY_EXTRA=personal cubby profile effective     # -> work, personal

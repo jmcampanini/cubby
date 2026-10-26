@@ -2,15 +2,58 @@ package e2e_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
 
-// Source selection and the PATH lookup are proven at unit level with the fake
-// runner and the fake terminal check. Through the binary, piped stdio is the
-// observable case: the terminal check fails before lazygit starts.
+func TestLazygitAcceptanceSingleSourceSelectedImplicitly(t *testing.T) {
+	bin := buildCubby(t)
+	host, sources := writeLazygitAcceptanceProject(t, "one")
+	fakeDir, logPath := writeFakeLazygit(t)
+
+	result := runCubbyInTerminal(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit")
+
+	if result.code != 0 {
+		t.Fatalf("lazygit code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	wantDir := physicalPath(t, sources["one"])
+	if got := strings.TrimSpace(mustRead(t, logPath)); got != wantDir {
+		t.Fatalf("fake lazygit dir = %q, want %q", got, wantDir)
+	}
+}
+
+func TestLazygitAcceptanceExplicitSourceSelectsRequestedRepo(t *testing.T) {
+	bin := buildCubby(t)
+	host, sources := writeLazygitAcceptanceProject(t, "one", "two")
+	fakeDir, logPath := writeFakeLazygit(t)
+
+	result := runCubbyInTerminal(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit", "--source", "two")
+
+	if result.code != 0 {
+		t.Fatalf("lazygit --source two code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	wantDir := physicalPath(t, sources["two"])
+	if got := strings.TrimSpace(mustRead(t, logPath)); got != wantDir {
+		t.Fatalf("fake lazygit dir = %q, want %q", got, wantDir)
+	}
+}
+
+func TestLazygitAcceptancePassesThroughLazygitExitStatus(t *testing.T) {
+	bin := buildCubby(t)
+	host, _ := writeLazygitAcceptanceProject(t, "one")
+	fakeDir, logPath := writeFakeLazygit(t)
+	mustWrite(t, filepath.Join(fakeDir, "lazygit"), "#!/bin/sh\nexit 7\n")
+
+	result := runCubbyInTerminal(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit")
+
+	if result.code != 7 {
+		t.Fatalf("lazygit code = %d, want 7; stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+}
+
 func TestLazygitAcceptanceWithoutTerminalFailsBeforeStarting(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("script execution is not portable enough for this acceptance test")
@@ -31,6 +74,36 @@ func TestLazygitAcceptanceWithoutTerminalFailsBeforeStarting(t *testing.T) {
 		t.Fatalf("lazygit stderr = %q, want one line of terminal guidance", result.stderr)
 	}
 	assertNotExist(t, logPath)
+}
+
+// runCubbyInTerminal runs cubby under script(1), which gives it a
+// pseudo-terminal on stdin and stdout and exits with cubby's own status, so
+// the terminal check passes and the fake lazygit on PATH really starts. The
+// BSD and util-linux forms of script take the command differently.
+func runCubbyInTerminal(t *testing.T, bin, dir string, env map[string]string, args ...string) runResult {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("script(1) is not available on windows")
+	}
+	if _, err := exec.LookPath("script"); err != nil {
+		t.Skip("script(1) is not on PATH")
+	}
+	withTerm := map[string]string{"TERM": "xterm"}
+	for key, value := range env {
+		withTerm[key] = value
+	}
+	command := append([]string{bin}, args...)
+	var scriptArgs []string
+	if runtime.GOOS == "linux" {
+		quoted := make([]string, 0, len(command))
+		for _, word := range command {
+			quoted = append(quoted, "'"+strings.ReplaceAll(word, "'", `'\''`)+"'")
+		}
+		scriptArgs = []string{"-qec", strings.Join(quoted, " "), "/dev/null"}
+	} else {
+		scriptArgs = append([]string{"-q", "/dev/null"}, command...)
+	}
+	return runCubbyEnv(t, "script", dir, withTerm, scriptArgs...)
 }
 
 func TestLazygitAcceptanceMultipleSourcesWithoutSourceFails(t *testing.T) {
@@ -88,6 +161,15 @@ func writeLazygitAcceptanceProject(t *testing.T, sourceNames ...string) (string,
 	}
 	mustWrite(t, filepath.Join(host, ".cubby.toml"), hostConfig)
 	return host, sources
+}
+
+func physicalPath(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) error = %v", path, err)
+	}
+	return filepath.Clean(resolved)
 }
 
 func writeFakeLazygit(t *testing.T) (dir, logPath string) {

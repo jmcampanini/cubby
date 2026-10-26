@@ -67,7 +67,9 @@ directory, as 'cubby gitignore check' and 'cubby link' do.
 ` + jsonContractHelp + `
 The document is {"healthy": bool, "issues": [...]}, each issue carrying
 "kind" (missing_source, missing_gitignore, missing_profile, dangling,
-drift, or conflict) and the fields shown on its text line.`,
+drift, or conflict) and the fields shown on its text line.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hostRoot, hostCfg, err := loadEffectiveHostConfig(cmd)

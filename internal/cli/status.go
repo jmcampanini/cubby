@@ -46,7 +46,9 @@ appears only on DRIFT lines as a comma-separated list.
 ` + jsonContractHelp + `
 The document is {"links": [...]}, each link carrying "state" ("linked" or
 "drift"), "path", "source", "target", and, when present, "profile" and
-"reasons".`,
+"reasons".
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

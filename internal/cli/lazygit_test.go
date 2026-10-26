@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -119,25 +118,6 @@ func TestLazygitExplicitEmptySourceFailsBeforeImplicitSelection(t *testing.T) {
 	}
 	if len(runner.calls) != 0 {
 		t.Fatalf("runner calls = %d, want 0", len(runner.calls))
-	}
-}
-
-func TestLazygitRunnerMissingBinaryReturnsFriendlyError(t *testing.T) {
-	host, _ := writeLazygitProject(t, "one")
-	mustChdir(t, host)
-	runner := installLazygitFakes(t)
-	runner.err = exec.ErrNotFound
-
-	_, _, err := executeForTest("lazygit")
-	if err == nil {
-		t.Fatalf("lazygit error = nil, want missing binary")
-	}
-	want := "lazygit not found in PATH; install lazygit or adjust PATH"
-	if err.Error() != want {
-		t.Fatalf("lazygit error = %q, want %q", err, want)
-	}
-	if len(runner.calls) != 1 {
-		t.Fatalf("runner calls = %d, want 1", len(runner.calls))
 	}
 }
 

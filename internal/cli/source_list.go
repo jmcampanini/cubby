@@ -30,12 +30,14 @@ func sourceListCommand() *cobra.Command {
 absolute path after expanding ~ and host-relative paths), and PROFILES
 (declared, comma-separated), in registration order. All sources must
 load. The table uses Unicode box borders; its header is bold only when
-color is enabled for stdout, which --color decides (auto, the default,
-enables it only when stdout is a terminal, TERM is not dumb, and NO_COLOR
-is unset or empty). Use --json for machine reading.
+--color styles stdout. Use --json for machine reading.
+
+` + colorModeHelp + `
 
 ` + jsonContractHelp + `
-The document is {"sources": [{"name", "path", "profiles"}]}.`,
+The document is {"sources": [{"name", "path", "profiles"}]}.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

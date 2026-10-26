@@ -34,7 +34,9 @@ fails.
 ` + jsonContractHelp + `
 The document is {"dry_run": bool, "actions": [...]}, each action carrying
 "kind" (remove, noop, or skip), "path", "source", and, when present,
-"reason".`,
+"reason".
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 	}
 	addProfileFlag(cmd)
