@@ -24,16 +24,16 @@ starts.
 lazygit is the only external program cubby runs and the only command that
 needs an interactive terminal. Before starting it cubby checks, in this
 order, that lazygit is on PATH, that stdin is a terminal, that stdout is a
-terminal, and that TERM is set to something other than dumb. The first
-missing piece stops the command with exit status 1 and one line on stderr
-naming it and how to supply it, such as 'cubby: lazygit not found in
-PATH; install lazygit or adjust PATH' or 'cubby: lazygit needs a terminal
-on stdout; run cubby lazygit from an interactive shell, not with stdout
-redirected'. Configuration and source errors come before these checks,
-so a pipe still sees them. --color does not apply to lazygit's own
-output. Once lazygit has started, cubby exits with lazygit's exit status;
-if lazygit is terminated by a signal cubby exits 1 with an error on
-stderr.`,
+terminal, and that TERM names a terminfo entry with cursor addressing
+(TERM=dumb has none). The first missing piece stops the command with
+exit status 1 and one line on stderr naming it and how to supply it,
+such as 'cubby: lazygit not found in PATH; install lazygit or adjust
+PATH' or 'cubby: lazygit needs a terminal on stdout; run cubby lazygit
+from an interactive shell, not with stdout redirected'. Configuration and
+source errors come before these checks, so a pipe still sees them.
+--color does not apply to lazygit's own output. Once lazygit has started,
+cubby exits with lazygit's exit status; if lazygit is terminated by a
+signal cubby exits 1 with an error on stderr.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

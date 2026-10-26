@@ -54,6 +54,22 @@ func TestLazygitAcceptancePassesThroughLazygitExitStatus(t *testing.T) {
 	}
 }
 
+func TestLazygitAcceptanceDumbTerminalFailsBeforeStarting(t *testing.T) {
+	bin := buildCubby(t)
+	host, _ := writeLazygitAcceptanceProject(t, "one")
+	fakeDir, logPath := writeFakeLazygit(t)
+
+	result := runCubbyInTerminal(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath, "TERM": "dumb"}, "lazygit")
+
+	if result.code != 1 {
+		t.Fatalf("lazygit code = %d, want 1; stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	if !strings.Contains(result.stdout+result.stderr, "cubby: lazygit needs cursor control, which TERM=dumb does not provide") {
+		t.Fatalf("lazygit output = %q %q, want cursor control guidance", result.stdout, result.stderr)
+	}
+	assertNotExist(t, logPath)
+}
+
 func TestLazygitAcceptanceWithoutTerminalFailsBeforeStarting(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("script execution is not portable enough for this acceptance test")
