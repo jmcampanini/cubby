@@ -54,7 +54,9 @@ Checks and their stdout markers:
 Profiles are selected as for 'cubby link'; with none selected the CONFLICT
 check is skipped rather than failing. --case-sensitive changes
 case-collision detection as it does for link. Links into a source whose
-directory is missing are still found and reported as DANGLING.
+directory is missing are still found and reported as DANGLING. doctor
+reads .gitignore at the host root and walks every registered source
+directory, as 'cubby gitignore check' and 'cubby link' do.
 
 ` + profileSelectionHelp + `
 

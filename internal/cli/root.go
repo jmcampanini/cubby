@@ -9,9 +9,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Execute runs the command tree and returns the process exit status.
-func Execute(out, errOut io.Writer) int {
-	err := newRootCommand(out, errOut).Execute()
+// Execute runs the command tree on args and returns the process exit status:
+// 0 on success, 2 on a usage error, 1 on any other failure unless the error
+// is an exitError carrying its own status.
+func Execute(args []string, out, errOut io.Writer) int {
+	cmd := newRootCommand(out, errOut)
+	cmd.SetArgs(args)
+
+	// Cobra resolves the command, parses flags, and validates Args before it
+	// runs this hook, so an error returned while the hook has not fired is a
+	// usage error. Cobra validates required flags and flag groups after the
+	// hook; no command declares either.
+	runnerReached := false
+	cmd.PersistentPreRun = func(*cobra.Command, []string) { runnerReached = true }
+
+	err := cmd.Execute()
 	if err == nil {
 		return 0
 	}
@@ -19,8 +31,11 @@ func Execute(out, errOut io.Writer) int {
 	if errors.As(err, &exitErr) {
 		return exitErr.Code
 	}
-	_, _ = fmt.Fprintf(errOut, "cubby: error: %v\n", err)
-	return 1
+	_, _ = fmt.Fprintf(errOut, "cubby: %v\n", err)
+	if runnerReached {
+		return 1
+	}
+	return 2
 }
 
 // newRootCommand builds the cubby command tree.
@@ -33,23 +48,34 @@ host repository as relative symlinks.
 
 A host repository registers its sources in .cubby.toml. Each source
 declares its profiles in cubby.toml and keeps profile-scoped files such as
-zshrc.work or nvim/init.work.lua. 'cubby link' symlinks the files for the
-selected profiles into the host at the same relative paths, 'cubby unlink'
-removes those links, 'cubby status' and 'cubby doctor' report on them, and
-'cubby prune' removes links whose target is gone. 'cubby gitignore sync'
-adds the ignore patterns the host needs for .cubby.toml and linked files.
+zshrc.work or nvim/init.work.lua. cubby links the files of the selected
+profiles into the host at the same relative paths, reports on those
+links, and removes them again. It never replaces an existing host file
+and never accesses the network.
 
 ` + hostRootHelp + `
 
 No command prompts. Inventory, action, and diagnostic commands accept
---json; each command's help states its output contract. Only 'cubby
-lazygit' runs an external program: it starts lazygit from PATH in a source
-directory and hands it the terminal. cubby never accesses the network.
+--json; each command's help states its output contract. The only styled
+output cubby renders is the 'source list' table header, governed by
+--color: auto (the default) styles stdout only when it is a terminal,
+TERM is not dumb, and NO_COLOR is unset or empty; always and never
+override that detection; --json output never carries escapes. Only
+'cubby lazygit' runs an external program: it starts lazygit from PATH in
+a source directory and hands it the terminal, so it is the one command
+that needs an interactive terminal. Help topics are read with
+'cubby help <topic>'.
 
-Run 'cubby config --help' for configuration precedence and the file
-schema, 'cubby profile effective' for the profiles an invocation would
-use, and 'cubby help exit-codes' for exit-status meanings. 'cubby docs'
-prints longer manual, schema, and reference text.`,
+Common tasks:
+  Cover generated paths in .gitignore:  cubby gitignore sync
+  Link the selected profiles:           cubby link
+  List links and their drift:           cubby status
+  Check the whole setup:                cubby doctor
+
+Command groups:
+  profile    Declared and selected profiles:     cubby profile --help
+  source     Registered source repositories:     cubby source --help
+  gitignore  Required host .gitignore patterns:  cubby gitignore --help`,
 		Version:            Version,
 		DisableSuggestions: true,
 		SilenceUsage:       true,
@@ -63,8 +89,15 @@ prints longer manual, schema, and reference text.`,
 	// argument as its value.
 	cmd.InitDefaultHelpFlag()
 	cmd.InitDefaultVersionFlag()
+	addColorFlag(cmd)
 
-	cmd.AddCommand(
+	cmd.AddGroup(
+		&cobra.Group{ID: commandGroupID, Title: "Commands:"},
+		&cobra.Group{ID: helpTopicGroupID, Title: "Help topics:"},
+	)
+	cmd.SetHelpCommandGroupID(commandGroupID)
+	cmd.SetCompletionCommandGroupID(commandGroupID)
+	for _, command := range []*cobra.Command{
 		linkCommand(),
 		unlinkCommand(),
 		pruneCommand(),
@@ -75,7 +108,12 @@ prints longer manual, schema, and reference text.`,
 		gitignoreCommand(),
 		lazygitCommand(),
 		configCommand(),
-		docsCommand(),
+	} {
+		command.GroupID = commandGroupID
+		cmd.AddCommand(command)
+	}
+	cmd.AddCommand(
+		workflowTopic(),
 		exitCodesTopic(),
 	)
 

@@ -18,8 +18,9 @@ func gitignoreSyncCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Append missing required .gitignore patterns",
-		Long: `Append each missing required pattern to the host .gitignore, creating the
-file when absent, and print each appended pattern on stdout, one per line.
+		Long: `Append each missing required pattern to .gitignore at the host root,
+creating the file when absent, and print each appended pattern on stdout,
+one per line.
 Existing lines are never removed, reordered, or rewritten; when the file
 lacks a trailing newline one is added before the new patterns. Exit
 status is 0 whether or not anything was appended.

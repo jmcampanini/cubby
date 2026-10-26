@@ -29,9 +29,10 @@ func sourceListCommand() *cobra.Command {
 		Long: `Print a table of registered sources on stdout with columns NAME, PATH (the
 absolute path after expanding ~ and host-relative paths), and PROFILES
 (declared, comma-separated), in registration order. All sources must
-load. The table uses Unicode box borders and a bold header rendered with
-ANSI escapes on every destination, including pipes and files; use --json
-for machine reading.
+load. The table uses Unicode box borders; its header is bold only when
+color is enabled for stdout, which --color decides (auto, the default,
+enables it only when stdout is a terminal, TERM is not dumb, and NO_COLOR
+is unset or empty). Use --json for machine reading.
 
 ` + jsonContractHelp + `
 The document is {"sources": [{"name", "path", "profiles"}]}.`,
@@ -51,7 +52,8 @@ The document is {"sources": [{"name", "path", "profiles"}]}.`,
 				return writeCommandJSON(cmd, sourceListEnvelope{Sources: sourceListJSONItems(items)})
 			}
 
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), renderSourceListTable(items))
+			out := cmd.OutOrStdout()
+			_, err = fmt.Fprintln(out, renderSourceListTable(items, styledOutput(cmd, out)))
 			return err
 		},
 	}
@@ -81,7 +83,7 @@ func sourceListJSONItems(items []SourceListItem) []SourceListItem {
 	return jsonItems
 }
 
-func renderSourceListTable(items []SourceListItem) string {
+func renderSourceListTable(items []SourceListItem, styled bool) string {
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
 		rows = append(rows, []string{item.Name, item.Path, strings.Join(item.Profiles, ",")})
@@ -92,7 +94,7 @@ func renderSourceListTable(items []SourceListItem) string {
 		Border(lipgloss.NormalBorder()).
 		BorderStyle(plain).
 		StyleFunc(func(row, _ int) lipgloss.Style {
-			if row == table.HeaderRow {
+			if row == table.HeaderRow && styled {
 				return plain.Bold(true)
 			}
 			return plain

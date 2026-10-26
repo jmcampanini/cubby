@@ -24,7 +24,8 @@ command would use.`
 
 const profileFileGrammarHelp = `A source file is profile-scoped when its basename contains .<profile> as a
 whole dot-separated segment and is not exactly .<profile>: zshrc.work,
-nvim/init.work.lua, git/config.personal.toml. Only regular files count;
+nvim/init.work.lua, git/config.personal.toml. cubby walks every
+registered source directory for such files. Only regular files count;
 .git directories, cubby.toml, and paths matched by the source's ignore
 patterns are skipped. The host path keeps the same relative path and
 filename, suffix included.`
@@ -34,8 +35,8 @@ const undeclaredProfileNoticeHelp = `For each selected profile that a source doe
 goes to stderr and that source contributes no files for it. A selected
 profile that no registered source declares is an error.`
 
-const managedLinkHelp = `A managed link is a symlink under the host root, outside .git and outside
-source directories nested in the host, whose target resolves inside a
+const managedLinkHelp = `cubby walks the host root, skipping .git and source directories nested in
+the host, for managed links: symlinks whose target resolves inside a
 registered source directory. Symlinks pointing anywhere else are ignored.`
 
 const driftReasonsHelp = `Drift reasons: dangling (target missing), unresolved target (target
@@ -46,10 +47,17 @@ source's ignore patterns match it).`
 
 const gitignorePatternsHelp = `The required patterns are /.cubby.toml plus '*.<profile>.*' and
 '*.<profile>' for every profile in the union of profiles declared by
-registered sources. A pattern counts as present only when it appears as
-an exact trimmed line that is not a comment; a missing .gitignore counts
-as empty. All registered sources must load.`
+registered sources. cubby reads .gitignore at the host root; a pattern
+counts as present only when it appears as an exact trimmed line that is
+not a comment, and a missing .gitignore counts as empty. All registered
+sources must load.`
 
-const jsonContractHelp = `--json writes one JSON object on a single line to stdout and nothing else
-to stdout; diagnostics still go to stderr, the output contains no
-terminal escapes, and the exit status is the same as without --json.`
+const noPromptHelp = `This command never prompts and works without a terminal.`
+
+const jsonContractHelp = noPromptHelp + ` --json writes one JSON
+object on a single line to stdout and nothing else to stdout; diagnostics
+still go to stderr, the output contains no terminal escapes, and the exit
+status is the same as without --json.`
+
+const commandGroupHelp = `Run without a subcommand this prints help on stdout and reads nothing;
+each subcommand's --help states its own contract.`

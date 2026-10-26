@@ -8,40 +8,29 @@ import (
 	"testing"
 )
 
-func TestLazygitAcceptanceSingleSourceSelectedImplicitly(t *testing.T) {
+// Source selection and the PATH lookup are proven at unit level with the fake
+// runner and the fake terminal check. Through the binary, piped stdio is the
+// observable case: the terminal check fails before lazygit starts.
+func TestLazygitAcceptanceWithoutTerminalFailsBeforeStarting(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("script execution is not portable enough for this acceptance test")
 	}
 	bin := buildCubby(t)
-	host, sources := writeLazygitAcceptanceProject(t, "one")
+	host, _ := writeLazygitAcceptanceProject(t, "one")
 	fakeDir, logPath := writeFakeLazygit(t)
 
 	result := runCubbyEnv(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit")
-	if result.code != 0 {
-		t.Fatalf("lazygit code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
-	}
-	wantDir := physicalPath(t, sources["one"])
-	if got := strings.TrimSpace(mustRead(t, logPath)); got != wantDir {
-		t.Fatalf("fake lazygit dir = %q, want %q", got, wantDir)
-	}
-}
 
-func TestLazygitAcceptanceExplicitSourceSelectsRequestedRepo(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("script execution is not portable enough for this acceptance test")
+	if result.code != 1 {
+		t.Fatalf("lazygit code = %d, want 1; stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
 	}
-	bin := buildCubby(t)
-	host, sources := writeLazygitAcceptanceProject(t, "one", "two")
-	fakeDir, logPath := writeFakeLazygit(t)
-
-	result := runCubbyEnv(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit", "--source", "two")
-	if result.code != 0 {
-		t.Fatalf("lazygit --source two code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	if result.stdout != "" {
+		t.Fatalf("lazygit stdout = %q, want empty", result.stdout)
 	}
-	wantDir := physicalPath(t, sources["two"])
-	if got := strings.TrimSpace(mustRead(t, logPath)); got != wantDir {
-		t.Fatalf("fake lazygit dir = %q, want %q", got, wantDir)
+	if !strings.HasPrefix(result.stderr, "cubby: lazygit needs a terminal") || strings.Count(result.stderr, "\n") != 1 {
+		t.Fatalf("lazygit stderr = %q, want one line of terminal guidance", result.stderr)
 	}
+	assertNotExist(t, logPath)
 }
 
 func TestLazygitAcceptanceMultipleSourcesWithoutSourceFails(t *testing.T) {
@@ -99,15 +88,6 @@ func writeLazygitAcceptanceProject(t *testing.T, sourceNames ...string) (string,
 	}
 	mustWrite(t, filepath.Join(host, ".cubby.toml"), hostConfig)
 	return host, sources
-}
-
-func physicalPath(t *testing.T, path string) string {
-	t.Helper()
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%q) error = %v", path, err)
-	}
-	return filepath.Clean(resolved)
 }
 
 func writeFakeLazygit(t *testing.T) (dir, logPath string) {

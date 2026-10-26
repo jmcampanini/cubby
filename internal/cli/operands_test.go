@@ -8,11 +8,12 @@ import (
 )
 
 // TestEveryApplicationCommandDeclaresItsGrammar walks a fresh tree and checks
-// the two declarations the CLI contract requires: every application-owned
-// command other than the root has an Args validator, and every command with
-// subcommands has a runner so Cobra validates operands instead of printing
-// help. Cobra validates operands before runners, so the presence of a
-// validator is the whole proof that rejected operands reach no command work.
+// the declarations the CLI contract requires: every application-owned
+// command other than the root has an Args validator, and every command group
+// and help topic has a runner so Cobra validates operands instead of
+// printing help. Cobra validates operands before runners, so the presence of
+// a validator is the whole proof that rejected operands reach no command
+// work.
 func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
 	root := newRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
 	root.InitDefaultHelpCmd()
@@ -25,6 +26,9 @@ func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
 		}
 		if command.HasSubCommands() && !command.Runnable() {
 			t.Errorf("%q has subcommands but no runner", command.CommandPath())
+		}
+		if command.GroupID == helpTopicGroupID && !command.Runnable() {
+			t.Errorf("%q is a help topic but has no runner", command.CommandPath())
 		}
 		for _, child := range command.Commands() {
 			visit(child)
