@@ -2,7 +2,7 @@ package cli
 
 import (
 	"errors"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -27,7 +27,7 @@ func (r *fakeExternalRunner) run(command externalCommand) error {
 func TestLazygitSingleRegisteredSourceSelectedImplicitly(t *testing.T) {
 	host, sources := writeLazygitProject(t, "one")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	out, errOut, err := executeForTest("lazygit")
 	if err != nil {
@@ -42,7 +42,7 @@ func TestLazygitSingleRegisteredSourceSelectedImplicitly(t *testing.T) {
 func TestLazygitMultipleSourcesWithoutSourceFailsAmbiguous(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one", "two")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	_, _, err := executeForTest("lazygit")
 	if err == nil {
@@ -61,7 +61,7 @@ func TestLazygitMultipleSourcesWithoutSourceFailsAmbiguous(t *testing.T) {
 func TestLazygitMultipleSourcesWithSourceRunsSelected(t *testing.T) {
 	host, sources := writeLazygitProject(t, "one", "two")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	_, errOut, err := executeForTest("lazygit", "--source", "two")
 	if err != nil {
@@ -73,7 +73,7 @@ func TestLazygitMultipleSourcesWithSourceRunsSelected(t *testing.T) {
 func TestLazygitSourceFlagTrimsWhitespace(t *testing.T) {
 	host, sources := writeLazygitProject(t, "one", "two")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	_, errOut, err := executeForTest("lazygit", "--source", " two ")
 	if err != nil {
@@ -85,7 +85,7 @@ func TestLazygitSourceFlagTrimsWhitespace(t *testing.T) {
 func TestLazygitUnknownSourceFailsBeforeRunning(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one", "two")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	_, _, err := executeForTest("lazygit", "--source", "missing")
 	if err == nil {
@@ -107,7 +107,7 @@ func TestLazygitUnknownSourceFailsBeforeRunning(t *testing.T) {
 func TestLazygitExplicitEmptySourceFailsBeforeImplicitSelection(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 
 	_, _, err := executeForTest("lazygit", "--source=")
 	if err == nil {
@@ -121,29 +121,10 @@ func TestLazygitExplicitEmptySourceFailsBeforeImplicitSelection(t *testing.T) {
 	}
 }
 
-func TestLazygitRunnerMissingBinaryReturnsFriendlyError(t *testing.T) {
-	host, _ := writeLazygitProject(t, "one")
-	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
-	runner.err = exec.ErrNotFound
-
-	_, _, err := executeForTest("lazygit")
-	if err == nil {
-		t.Fatalf("lazygit error = nil, want missing binary")
-	}
-	want := "lazygit not found in PATH; install lazygit or adjust PATH"
-	if err.Error() != want {
-		t.Fatalf("lazygit error = %q, want %q", err, want)
-	}
-	if len(runner.calls) != 1 {
-		t.Fatalf("runner calls = %d, want 1", len(runner.calls))
-	}
-}
-
 func TestLazygitRunnerExitErrorPreservesExitCode(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one")
 	mustChdir(t, host)
-	runner := installFakeExternalRunner(t)
+	runner := installLazygitFakes(t)
 	runner.err = &exitError{Code: 42}
 
 	_, _, err := executeForTest("lazygit")
@@ -165,6 +146,51 @@ func TestLazygitRunnerExitErrorPreservesExitCode(t *testing.T) {
 	}
 }
 
+func TestLazygitMissingBinaryFailsBeforeTerminalCheck(t *testing.T) {
+	host, _ := writeLazygitProject(t, "one")
+	mustChdir(t, host)
+	runner := installFakeExternalRunner(t)
+	t.Setenv("PATH", t.TempDir())
+	check := installFakeTerminalCheck(t, errors.New("no terminal"))
+
+	_, _, err := executeForTest("lazygit")
+
+	if err == nil {
+		t.Fatalf("lazygit error = nil, want missing binary")
+	}
+	want := "lazygit not found in PATH; install lazygit or adjust PATH"
+	if err.Error() != want {
+		t.Fatalf("lazygit error = %q, want %q", err, want)
+	}
+	if check.calls != 0 {
+		t.Fatalf("terminal check calls = %d, want 0", check.calls)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("runner calls = %d, want 0", len(runner.calls))
+	}
+}
+
+func TestLazygitWithoutTerminalFailsBeforeRunning(t *testing.T) {
+	host, _ := writeLazygitProject(t, "one")
+	mustChdir(t, host)
+	runner := installFakeExternalRunner(t)
+	installFakeLazygitOnPath(t)
+	noTerminal := errors.New("lazygit needs a terminal on stdin; run cubby lazygit from an interactive shell, not from a pipe")
+	check := installFakeTerminalCheck(t, noTerminal)
+
+	_, _, err := executeForTest("lazygit")
+
+	if !errors.Is(err, noTerminal) {
+		t.Fatalf("lazygit error = %v, want %v", err, noTerminal)
+	}
+	if check.calls != 1 {
+		t.Fatalf("terminal check calls = %d, want 1", check.calls)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("runner calls = %d, want 0", len(runner.calls))
+	}
+}
+
 func TestLazygitHelpShowsSourceFlag(t *testing.T) {
 	out, errOut, err := executeForTest("lazygit", "--help")
 	if err != nil {
@@ -173,6 +199,16 @@ func TestLazygitHelpShowsSourceFlag(t *testing.T) {
 	if !strings.Contains(out, "--source") {
 		t.Fatalf("lazygit help missing --source:\n%s", out)
 	}
+}
+
+// installLazygitFakes makes lazygit startable without a real binary or
+// terminal: a fake lazygit sits on PATH, the terminal check passes, and the
+// returned fake runner records what would have run.
+func installLazygitFakes(t *testing.T) *fakeExternalRunner {
+	t.Helper()
+	installFakeLazygitOnPath(t)
+	installFakeTerminalCheck(t, nil)
+	return installFakeExternalRunner(t)
 }
 
 func installFakeExternalRunner(t *testing.T) *fakeExternalRunner {
@@ -184,6 +220,40 @@ func installFakeExternalRunner(t *testing.T) *fakeExternalRunner {
 		runExternalCommand = previous
 	})
 	return runner
+}
+
+type fakeTerminalCheck struct {
+	calls int
+	err   error
+}
+
+func (c *fakeTerminalCheck) check() error {
+	c.calls++
+	return c.err
+}
+
+func installFakeTerminalCheck(t *testing.T, err error) *fakeTerminalCheck {
+	t.Helper()
+	check := &fakeTerminalCheck{err: err}
+	previous := requireInteractiveTerminal
+	requireInteractiveTerminal = check.check
+	t.Cleanup(func() {
+		requireInteractiveTerminal = previous
+	})
+	return check
+}
+
+// installFakeLazygitOnPath puts an executable named lazygit on PATH so the
+// lookup that precedes the terminal check succeeds. The fake runner means
+// it is never executed.
+func installFakeLazygitOnPath(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "lazygit")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", path, err)
+	}
+	t.Setenv("PATH", dir)
 }
 
 func assertLazygitCall(t *testing.T, runner *fakeExternalRunner, wantDir string) {

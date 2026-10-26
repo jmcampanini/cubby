@@ -50,7 +50,9 @@ touching the filesystem, and still exits 1 on a fatal conflict.
 The document is {"dry_run": bool, "actions": [...]}, each action carrying
 "kind" (create, noop, skip, or conflict), "path", "source", and, when
 present, "target", "reason", and "fatal". When any action is a fatal
-conflict nothing was created and the exit status is 1.`,
+conflict nothing was created and the exit status is 1.
+
+` + noPromptHelp,
 		Example: `  cubby link --dry-run
   cubby link --profiles work,personal
   CUBBY_PROFILES=personal cubby link --ignore-conflicts`,

@@ -36,13 +36,29 @@ read only from the file.
 
 ` + hostRootHelp + `
 
-Host .cubby.toml fields: profiles (list), env_profiles (an environment
-variable name), ignore_conflicts (bool), case_sensitive (bool), and
-[[source]] entries with name (letters, digits, underscores, and dashes,
-unique within the host) and path (absolute, ~/..., or relative to the host
-root). Source cubby.toml fields: profiles (list, at least one) and ignore
-(list of doublestar patterns; a pattern without '/' matches basenames
-anywhere in the source, one with '/' matches the source-relative path).
+Host .cubby.toml keys:
+  profiles          Profile names to select; may be empty.
+  env_profiles      Name of an environment variable whose comma-separated
+                    value is appended to the selection when it is set.
+  ignore_conflicts  Bool, default false: turn link conflicts into SKIP
+                    lines instead of failures.
+  case_sensitive    Bool, default false: treat host paths that differ only
+                    by letter case as distinct.
+  [[source]]        One table per source repository, with keys:
+    name            Letters, digits, underscores, and dashes; unique
+                    within the host.
+    path            Absolute, ~/..., or relative to the host root; a
+                    directory holding a cubby.toml. Commands that load
+                    sources fail when it is missing.
+
+Source cubby.toml keys:
+  profiles          Profile names the source provides; at least one.
+  ignore            Optional doublestar patterns for files to skip while
+                    linking: a pattern without '/' matches basenames
+                    anywhere in the source, one with '/' matches the
+                    source-relative path.
+
+A key either file does not define is an error.
 
 The report is valid TOML that reloads as .cubby.toml. Its profiles line
 shows the selected list before env_profiles is applied; the '# Effective'
@@ -57,7 +73,9 @@ paths relative to PATH's directory, loads each source's cubby.toml, and
 prints 'valid' on stdout; with --source-config it validates PATH as a
 source cubby.toml instead. --validate does not read the current directory
 and ignores the other flags. Validation errors go to stderr with exit
-status 1.`,
+status 1.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if validatePath != "" {

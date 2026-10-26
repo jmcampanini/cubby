@@ -50,7 +50,7 @@ mise run build
 | `cubby source list [--json]` | List registered sources. |
 | `cubby lazygit [--source NAME]` | Open lazygit in a source repository. |
 
-Command help is the canonical reference: `cubby --help`, each command's `--help`, and the help topic `cubby help exit-codes` describe every user-facing contract, and `cubby docs [manual|schema|reference]` supplements them with longer text.
+Command help is the canonical reference: `cubby --help`, each command's `--help`, and the help topics `cubby help workflow` and `cubby help exit-codes` describe every user-facing contract.
 
 The typical loop after registering a source is `cubby gitignore sync`, `cubby link`, then `cubby status` or `cubby doctor`.
 

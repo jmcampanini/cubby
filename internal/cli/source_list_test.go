@@ -43,6 +43,45 @@ func TestSourceListDefaultTableIncludesInventory(t *testing.T) {
 	}
 }
 
+func TestSourceListStylesHeaderOnlyWhenColorIsEnabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		noColor  string
+		wantBold bool
+	}{
+		{name: "auto into a buffer", args: []string{"source", "list"}},
+		{name: "auto with NO_COLOR", args: []string{"source", "list", "--color=auto"}, noColor: "1"},
+		{name: "never", args: []string{"source", "list", "--color=never"}},
+		{name: "always", args: []string{"source", "list", "--color=always"}, wantBold: true},
+		{name: "always with NO_COLOR", args: []string{"source", "list", "--color=always"}, noColor: "1", wantBold: true},
+		{name: "always with json", args: []string{"source", "list", "--color=always", "--json"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host, _, _ := writeSourceListProject(t)
+			mustChdir(t, host)
+			t.Setenv("NO_COLOR", tt.noColor)
+
+			out, errOut, err := executeForTest(tt.args...)
+
+			if err != nil {
+				t.Fatalf("%v error = %v, stderr = %s", tt.args, err, errOut)
+			}
+			if !strings.Contains(out, "one") || !strings.Contains(out, "two") {
+				t.Fatalf("%v output missing the inventory:\n%s", tt.args, out)
+			}
+			if got := strings.Contains(out, "\x1b["); got != tt.wantBold {
+				t.Errorf("%v output contains an escape = %t, want %t:\n%q", tt.args, got, tt.wantBold, out)
+			}
+			if tt.wantBold && !strings.Contains(out, "\x1b[1m") {
+				t.Errorf("%v output has no bold escape:\n%q", tt.args, out)
+			}
+		})
+	}
+}
+
 func TestSourceListFailsStrictLoadingForInvalidSource(t *testing.T) {
 	root := t.TempDir()
 	host := filepath.Join(root, "host")

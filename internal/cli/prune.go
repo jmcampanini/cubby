@@ -40,7 +40,9 @@ is an error and nothing is removed.
 ` + managedLinkHelp + `
 
 ` + jsonContractHelp + `
-The document is {"removed": [{"path", "source", "target"}]}.`,
+The document is {"removed": [{"path", "source", "target"}]}.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProjectDiagnostics()

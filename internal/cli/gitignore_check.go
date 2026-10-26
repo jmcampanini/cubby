@@ -24,7 +24,9 @@ all are present. Nothing is modified.
 ` + gitignorePatternsHelp + `
 
 ` + jsonContractHelp + `
-The document is {"ok": bool, "missing": [...]}.`,
+The document is {"ok": bool, "missing": [...]}.
+
+` + noPromptHelp,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			project, err := config.LoadProject()

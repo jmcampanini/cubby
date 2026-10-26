@@ -2,6 +2,8 @@ package cli
 
 import (
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -21,7 +23,7 @@ func TestConfigCommandPrintsEffectiveConfigAsTOML(t *testing.T) {
 		"profiles = [\"work\"]",
 		"[[source]]",
 		"# Effective",
-		`# loaded_files = ["` + filepath.Join(host, config.HostConfigFileName) + `"]`,
+		`# loaded_files = ["` + filepath.Join(resolvedPath(t, host), config.HostConfigFileName) + `"]`,
 		"# effective_profiles = [\"work\"]",
 	} {
 		if !strings.Contains(out, want) {
@@ -165,14 +167,26 @@ func parseHostConfigOutput(t *testing.T, out string) config.HostConfig {
 	return parsed
 }
 
-func TestDocsCommandPrintsSchema(t *testing.T) {
-	out, errOut, err := executeForTest("docs", "schema")
-	if err != nil {
-		t.Fatalf("docs schema error = %v, stderr = %s", err, errOut)
-	}
-	for _, want := range []string{"# Cubby config schema", config.HostConfigFileName, config.SourceConfigFileName} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("docs schema output missing %q:\n%s", want, out)
+// TestConfigHelpNamesEveryConfigKey derives the key set from the struct tags
+// the loader reads, so a key added to a config type without a line in the
+// config help fails here.
+func TestConfigHelpNamesEveryConfigKey(t *testing.T) {
+	long := configCommand().Long
+
+	for _, typ := range []reflect.Type{
+		reflect.TypeFor[config.HostConfig](),
+		reflect.TypeFor[config.HostSource](),
+		reflect.TypeFor[config.SourceConfig](),
+	} {
+		for i := range typ.NumField() {
+			key := typ.Field(i).Tag.Get("toml")
+			if key == "" {
+				t.Fatalf("%s.%s has no toml tag", typ.Name(), typ.Field(i).Name)
+			}
+			row := regexp.MustCompile(`(?m)^ +(\[\[)?` + regexp.QuoteMeta(key) + `(\]\])? `)
+			if !row.MatchString(long) {
+				t.Errorf("config help has no row for key %q of %s", key, typ.Name())
+			}
 		}
 	}
 }

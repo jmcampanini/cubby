@@ -25,7 +25,7 @@ var DefaultSourceConfig = SourceConfig{}
 
 // HostConfig is the host repository's .cubby.toml schema.
 type HostConfig struct {
-	Profiles []string `toml:"profiles" config:"profiles" pflag_singular:"profile" help:"profiles to apply; --profiles accepts comma-separated lists"`
+	Profiles []string `toml:"profiles" config:"profiles" pflag_singular:"profile" help:"profiles to select (--profiles: comma-separated)"`
 	// EnvProfiles names an environment variable whose comma-separated value is
 	// appended to Profiles by EffectiveProfiles. Empty string means unused.
 	EnvProfiles     string       `toml:"env_profiles"`
