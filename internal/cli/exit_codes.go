@@ -23,10 +23,11 @@ func exitCodesTopic() *cobra.Command {
      stdout: 'doctor' with at least one issue, 'gitignore check' with at
      least one missing pattern, and 'link' with a fatal conflict, with
      or without --dry-run or --json.
-  2  A usage error: an unknown command, flag, or operand, operands that
-     do not fit the command's grammar, a flag missing its value, or a
-     flag value outside its fixed set, such as --color=bold or an empty
-     --profile.
+  2  A usage error: an unknown command (except a name given to 'cubby
+     help' or 'cubby completion', which print help and exit 0), flag, or
+     operand, operands that do not fit the command's grammar, a flag
+     missing its value, or a flag value its flag rejects, such as
+     --color=bold or an empty --profile.
   N  'lazygit' exits with lazygit's own exit status once lazygit has
      started, printing nothing of its own. If lazygit is terminated by a
      signal, cubby exits 1 with an error on stderr.
