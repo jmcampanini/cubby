@@ -8,16 +8,14 @@ import (
 )
 
 // TestEveryApplicationCommandDeclaresItsGrammar walks a fresh tree and checks
-// the declarations the CLI contract requires: every application-owned
-// command has an Args validator, and every command group
-// and help topic has a runner so Cobra validates operands instead of
-// printing help. Cobra validates operands before runners, so the presence of
+// the declarations the CLI contract requires: every command other than the
+// root, Cobra's help and completion included, has an Args validator, and
+// every command group and help topic has a runner so Cobra validates
+// operands instead of printing help. Cobra validates operands before runners, so the presence of
 // a validator is the whole proof that rejected operands reach no command
 // work.
 func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
 	root := newRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
-	root.InitDefaultHelpCmd()
-	root.InitDefaultCompletionCmd()
 
 	var visit func(*cobra.Command)
 	visit = func(command *cobra.Command) {
@@ -34,5 +32,7 @@ func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
 			visit(child)
 		}
 	}
-	visit(root)
+	for _, child := range root.Commands() {
+		visit(child)
+	}
 }

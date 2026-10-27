@@ -228,10 +228,6 @@ func renderDoctorIssues(cmd *cobra.Command, issues []doctorIssue) error {
 			if _, err := fmt.Fprintf(out, "CONFLICT %s %s [source=%s]\n", issue.Path, issue.Reason, issue.Source); err != nil {
 				return err
 			}
-		default:
-			if _, err := fmt.Fprintln(out, strings.ToUpper(issue.Kind)); err != nil {
-				return err
-			}
 		}
 	}
 	return nil

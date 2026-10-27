@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -142,6 +144,24 @@ func TestLazygitRunnerExitErrorPreservesExitCode(t *testing.T) {
 	}
 	if len(runner.calls) != 1 {
 		t.Fatalf("runner calls = %d, want 1", len(runner.calls))
+	}
+}
+
+func TestNormalizeExternalCommandErrorNamesExitStatus(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh is not available on windows")
+	}
+	runErr := exec.Command("sh", "-c", "exit 42").Run()
+	command := externalCommand{Name: "lazygit"}
+
+	err := normalizeExternalCommandError(command, runErr)
+
+	var exitErr *exitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("normalizeExternalCommandError(%v) = %T %v, want exitError", runErr, err, err)
+	}
+	if exitErr.Code != 42 || exitErr.Message != "lazygit exited with status 42" {
+		t.Errorf("normalizeExternalCommandError(%v) = %+v, want code 42 and message %q", runErr, exitErr, "lazygit exited with status 42")
 	}
 }
 

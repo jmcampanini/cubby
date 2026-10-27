@@ -84,8 +84,13 @@ Command groups:
 		DisableSuggestions: true,
 		SilenceUsage:       true,
 		SilenceErrors:      true,
-		Args:               cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		// Root leaves Args unset so Cobra rejects an unknown command while
+		// resolving it, before --help or --version can print instead. Only
+		// operands after -- reach this runner.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return &exitError{Code: 2, Message: fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())}
+			}
 			return cmd.Help()
 		},
 	}

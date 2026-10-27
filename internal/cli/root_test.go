@@ -86,6 +86,26 @@ func TestEveryApplicationCommandRendersCompleteHelp(t *testing.T) {
 	visit(root)
 }
 
+func TestBareRootAndCompletionPrintTheirHelp(t *testing.T) {
+	for _, args := range [][]string{{}, {"completion"}} {
+		t.Run(strings.Join(append([]string{"cubby"}, args...), " "), func(t *testing.T) {
+			var help, stdout, stderr bytes.Buffer
+			if code := Execute(append(args, "--help"), &help, &bytes.Buffer{}); code != 0 {
+				t.Fatalf("Execute(%v --help) = %d, want 0", args, code)
+			}
+
+			code := Execute(args, &stdout, &stderr)
+
+			if code != 0 || stderr.Len() != 0 {
+				t.Errorf("Execute(%v) = %d, stderr %q; want 0 and no diagnostic", args, code, stderr.String())
+			}
+			if stdout.String() != help.String() {
+				t.Errorf("Execute(%v) stdout = %q, want its --help text %q", args, stdout.String(), help.String())
+			}
+		})
+	}
+}
+
 func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 	tests := []struct {
 		name string
@@ -98,6 +118,8 @@ func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 		{name: "unknown nested help topic", args: []string{"help", "profile", "bogus"}, want: `cubby: unknown command "bogus" for "cubby profile"` + "\n"},
 		{name: "extra help operand", args: []string{"help", "status", "bogus"}, want: `cubby: unknown command "bogus" for "cubby status"` + "\n"},
 		{name: "unknown completion shell", args: []string{"completion", "bogus"}, want: `cubby: unknown command "bogus" for "cubby completion"` + "\n"},
+		{name: "unknown command before --help", args: []string{"bogus", "--help"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
+		{name: "unknown command before --version", args: []string{"bogus", "--version"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
 		{name: "unknown flag", args: []string{"status", "--bogus"}, want: "cubby: unknown flag: --bogus\n"},
 		{name: "newline in the message", args: []string{"status", "--bogus\nflag"}, want: "cubby: unknown flag: --bogus flag\n"},
 		{name: "color outside its set", args: []string{"--color=bold", "source", "list"}, want: `cubby: invalid argument "bold" for "--color" flag: unknown color mode "bold"; use auto, always, or never` + "\n"},
