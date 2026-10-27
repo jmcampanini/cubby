@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -190,13 +193,41 @@ func TestDoctorReportsInvalidSourceIgnorePattern(t *testing.T) {
 	mustWrite(t, filepath.Join(host, ".gitignore"), "*.work.*\n*.work\n")
 	mustChdir(t, host)
 
-	out, _, err := executeForTest("doctor")
-	if err == nil {
-		t.Fatalf("doctor error = nil, output = %s", out)
-	}
-	for _, want := range []string{"MISSING_SOURCE src", "invalid ignore pattern"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("doctor output missing %q:\n%s", want, out)
+	for _, jsonOutput := range []bool{false, true} {
+		args := []string{"doctor"}
+		if jsonOutput {
+			args = append(args, "--json")
+		}
+		var stdout, stderr bytes.Buffer
+
+		code := Execute(args, &stdout, &stderr)
+
+		if code != 1 {
+			t.Errorf("Execute(%v) = %d, want 1", args, code)
+		}
+		if jsonOutput {
+			var got map[string]any
+			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+				t.Fatalf("decode doctor stdout: %v", err)
+			}
+			want := map[string]any{
+				"healthy": false,
+				"issues": []any{
+					map[string]any{"kind": "missing_source", "source": "src"},
+					map[string]any{"kind": "missing_gitignore", "pattern": "/.cubby.toml"},
+					map[string]any{"kind": "missing_profile", "profile": "work"},
+				},
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("doctor report = %#v, want %#v", got, want)
+			}
+		} else if want := "MISSING_SOURCE src\nMISSING_GITIGNORE /.cubby.toml\nMISSING_PROFILE work\n"; stdout.String() != want {
+			t.Errorf("stdout = %q, want %q", stdout.String(), want)
+		}
+		if !strings.Contains(stderr.String(), "invalid ignore pattern") ||
+			!strings.HasSuffix(stderr.String(), "\ncubby: doctor found 3 issues\n") ||
+			strings.Count(stderr.String(), "cubby: ") != 1 {
+			t.Errorf("stderr = %q, want source diagnostic followed by one failure summary", stderr.String())
 		}
 	}
 }

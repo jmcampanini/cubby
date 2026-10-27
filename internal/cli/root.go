@@ -12,7 +12,8 @@ import (
 
 // Execute runs the command tree on args and returns the process exit status:
 // 0 on success, 2 on a usage error, 1 on any other failure unless the error
-// is an exitError carrying its own status.
+// is an exitError carrying its own status. Every failure prints one
+// diagnostic line on errOut.
 func Execute(args []string, out, errOut io.Writer) int {
 	cmd := newRootCommand(out, errOut)
 	cmd.SetArgs(args)
@@ -29,13 +30,13 @@ func Execute(args []string, out, errOut io.Writer) int {
 	if err == nil {
 		return 0
 	}
+	// The diagnostic is one line, so a message that carries newlines, such
+	// as a flag name or path typed with one, is joined with spaces.
+	_, _ = fmt.Fprintf(errOut, "cubby: %s\n", strings.ReplaceAll(err.Error(), "\n", " "))
 	var exitErr *exitError
 	if errors.As(err, &exitErr) {
 		return exitErr.Code
 	}
-	// The diagnostic is one line, so a message that carries newlines, such
-	// as a flag name or path typed with one, is joined with spaces.
-	_, _ = fmt.Fprintf(errOut, "cubby: %s\n", strings.ReplaceAll(err.Error(), "\n", " "))
 	if runnerReached {
 		return 1
 	}
@@ -83,6 +84,10 @@ Command groups:
 		DisableSuggestions: true,
 		SilenceUsage:       true,
 		SilenceErrors:      true,
+		Args:               cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
 	}
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
@@ -119,6 +124,28 @@ Command groups:
 		workflowTopic(),
 		exitCodesTopic(),
 	)
+	// Cobra's help command prints help for an unknown topic, and its
+	// completion command, having no runner, prints help for an unknown shell.
+	// Both are unknown operands, so they are validated like every other
+	// command's and exit 2.
+	cmd.InitDefaultHelpCmd()
+	cmd.InitDefaultCompletionCmd()
+	for _, child := range cmd.Commands() {
+		switch child.Name() {
+		case "help":
+			child.Args = func(cmd *cobra.Command, args []string) error {
+				topic, remaining, err := cmd.Root().Find(args)
+				if err != nil {
+					return err
+				}
+				return cobra.NoArgs(topic, remaining)
+			}
+		case "completion":
+			child.RunE = func(cmd *cobra.Command, _ []string) error {
+				return cmd.Help()
+			}
+		}
+	}
 
 	return cmd
 }

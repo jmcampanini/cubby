@@ -24,8 +24,8 @@ func TestGitignoreCheckSyncEndToEndFromHostRoot(t *testing.T) {
 	}
 	assertContains(t, checkBefore.stdout, "*.work.*")
 	assertContains(t, checkBefore.stdout, "*.work")
-	if checkBefore.stderr != "" {
-		t.Fatalf("gitignore check before sync stderr = %q, want empty", checkBefore.stderr)
+	if want := "cubby: .gitignore is missing 3 patterns\n"; checkBefore.stderr != want {
+		t.Fatalf("gitignore check before sync stderr = %q, want %q", checkBefore.stderr, want)
 	}
 
 	sync := runCubby(t, bin, host, "gitignore", "sync")

@@ -61,7 +61,7 @@ func normalizeExternalCommandError(command externalCommand, err error) error {
 	var execExitErr *exec.ExitError
 	if errors.As(err, &execExitErr) {
 		if code := execExitErr.ExitCode(); code >= 0 {
-			return &exitError{Code: code}
+			return &exitError{Code: code, Message: fmt.Sprintf("%s exited with status %d", command.Name, code)}
 		}
 	}
 

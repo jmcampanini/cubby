@@ -9,7 +9,7 @@ import (
 
 // TestEveryApplicationCommandDeclaresItsGrammar walks a fresh tree and checks
 // the declarations the CLI contract requires: every application-owned
-// command other than the root has an Args validator, and every command group
+// command has an Args validator, and every command group
 // and help topic has a runner so Cobra validates operands instead of
 // printing help. Cobra validates operands before runners, so the presence of
 // a validator is the whole proof that rejected operands reach no command
@@ -34,10 +34,5 @@ func TestEveryApplicationCommandDeclaresItsGrammar(t *testing.T) {
 			visit(child)
 		}
 	}
-	for _, child := range root.Commands() {
-		if child.Name() == "help" || child.Name() == "completion" {
-			continue
-		}
-		visit(child)
-	}
+	visit(root)
 }

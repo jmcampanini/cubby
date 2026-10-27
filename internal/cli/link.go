@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,7 +33,8 @@ path (the source registered first wins and the others conflict); or,
 unless case_sensitive is set, when planned or existing host paths differ
 only by letter case. A host symlink that already points at the source
 file is a no-op. Any conflict is fatal: nothing is created, the CONFLICT
-lines are printed on stdout, and the exit status is 1. With
+lines are printed on stdout, one line such as 'cubby: 2 fatal link
+conflicts' is printed on stderr, and the exit status is 1. With
 ignore_conflicts set (in .cubby.toml, CUBBY_IGNORE_CONFLICTS, or
 --ignore-conflicts) conflicts become SKIP lines and the remaining links
 are created. case_sensitive comes from .cubby.toml, CUBBY_CASE_SENSITIVE,
@@ -42,7 +44,8 @@ Without --dry-run or --json, stdout lists only SKIP lines; created links
 are not printed. --dry-run prints every planned action (CREATE, NOOP,
 SKIP, CONFLICT) as '<ACTION> <host path> <detail> [source=<name>]', where
 detail is '-> <link target>' for CREATE and the reason otherwise, without
-touching the filesystem, and still exits 1 on a fatal conflict.
+touching the filesystem, and still fails on a fatal conflict with the
+same stderr line and exit status 1.
 
 ` + undeclaredProfileNoticeHelp + `
 
@@ -50,7 +53,8 @@ touching the filesystem, and still exits 1 on a fatal conflict.
 The document is {"dry_run": bool, "actions": [...]}, each action carrying
 "kind" (create, noop, skip, or conflict), "path", "source", and, when
 present, "target", "reason", and "fatal". When any action is a fatal
-conflict nothing was created and the exit status is 1.
+conflict nothing was created, the stderr line is printed, and the exit
+status is 1.
 
 ` + noPromptHelp,
 		Example: `  cubby link --dry-run
@@ -111,7 +115,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 			if err := writeCommandJSON(cmd, output.LinkActionsEnvelope(opts.DryRun, plan.Actions)); err != nil {
 				return err
 			}
-			return &exitError{Code: 1}
+			return fatalConflictsError(plan)
 		}
 		if !opts.DryRun {
 			if err := linkops.ApplyLink(plan); err != nil {
@@ -126,7 +130,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 			return err
 		}
 		if plan.HasFatalConflicts() {
-			return &exitError{Code: 1}
+			return fatalConflictsError(plan)
 		}
 		return nil
 	}
@@ -135,7 +139,7 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 		if err := linkops.RenderActions(out, plan.FatalConflicts()); err != nil {
 			return err
 		}
-		return &exitError{Code: 1}
+		return fatalConflictsError(plan)
 	}
 	if err := linkops.ApplyLink(plan); err != nil {
 		return err
@@ -144,6 +148,11 @@ func linkProfilesWithOptions(cmd *cobra.Command, project *config.Project, profil
 		return err
 	}
 	return nil
+}
+
+// fatalConflictsError reports the fatal conflicts that stopped plan.
+func fatalConflictsError(plan linkops.Plan) error {
+	return errors.New(countNoun(len(plan.FatalConflicts()), "fatal link conflict"))
 }
 
 func linkProfileFile(hostRoot, sourceRoot, relPath string) error {

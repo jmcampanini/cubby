@@ -74,7 +74,6 @@ func TestDoctorAcceptanceUnhealthySetupReportsStableMarkers(t *testing.T) {
 	}
 	for _, want := range []string{
 		"MISSING_SOURCE missing",
-		"path does not exist",
 		"MISSING_GITIGNORE *.work",
 		"MISSING_PROFILE ghost",
 		"DANGLING stale.work",
@@ -82,4 +81,5 @@ func TestDoctorAcceptanceUnhealthySetupReportsStableMarkers(t *testing.T) {
 	} {
 		assertContains(t, result.stdout, want)
 	}
+	assertContains(t, result.stderr, "path does not exist")
 }

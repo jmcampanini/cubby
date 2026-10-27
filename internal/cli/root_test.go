@@ -93,6 +93,11 @@ func TestExecuteExitsTwoOnUsageErrorsWithOneLine(t *testing.T) {
 		want string
 	}{
 		{name: "unknown command", args: []string{"bogus"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
+		{name: "root operand", args: []string{"--", "bogus"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
+		{name: "unknown help topic", args: []string{"help", "bogus"}, want: `cubby: unknown command "bogus" for "cubby"` + "\n"},
+		{name: "unknown nested help topic", args: []string{"help", "profile", "bogus"}, want: `cubby: unknown command "bogus" for "cubby profile"` + "\n"},
+		{name: "extra help operand", args: []string{"help", "status", "bogus"}, want: `cubby: unknown command "bogus" for "cubby status"` + "\n"},
+		{name: "unknown completion shell", args: []string{"completion", "bogus"}, want: `cubby: unknown command "bogus" for "cubby completion"` + "\n"},
 		{name: "unknown flag", args: []string{"status", "--bogus"}, want: "cubby: unknown flag: --bogus\n"},
 		{name: "newline in the message", args: []string{"status", "--bogus\nflag"}, want: "cubby: unknown flag: --bogus flag\n"},
 		{name: "color outside its set", args: []string{"--color=bold", "source", "list"}, want: `cubby: invalid argument "bold" for "--color" flag: unknown color mode "bold"; use auto, always, or never` + "\n"},
