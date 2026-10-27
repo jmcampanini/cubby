@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -22,7 +23,6 @@ type doctorEnvelope struct {
 type doctorIssue struct {
 	Kind    string   `json:"kind"`
 	Source  string   `json:"source,omitempty"`
-	Message string   `json:"message,omitempty"`
 	Pattern string   `json:"pattern,omitempty"`
 	Profile string   `json:"profile,omitempty"`
 	Path    string   `json:"path,omitempty"`
@@ -36,13 +36,15 @@ func doctorCommand() *cobra.Command {
 		Use:   "doctor",
 		Short: "Run Cubby health checks",
 		Long: `Run health checks against the host and its registered sources, print one
-line per issue on stdout, and exit 1 when any issue is found. A healthy
+line per issue on stdout, and exit 1 when any issue is found, ending with
+one line on stderr such as 'cubby: doctor found 2 issues'. A healthy
 setup prints nothing and exits 0. Nothing is modified.
 
 Checks and their stdout markers:
   MISSING_SOURCE     a registered source path is missing, is not a
-                     directory, or has an invalid cubby.toml; the other
-                     checks continue with the remaining sources
+                     directory, or has an invalid cubby.toml; the line
+                     names the source, the reason goes to stderr, and
+                     the other checks continue with the remaining sources
   MISSING_GITIGNORE  a pattern 'cubby gitignore check' would report
   MISSING_PROFILE    a selected profile that no loadable source declares
   DANGLING           a managed link whose target is missing
@@ -80,6 +82,11 @@ drift, or conflict) and the fields shown on its text line.
 			if err != nil {
 				return err
 			}
+			for _, issue := range project.SourceIssues {
+				if _, err := fmt.Fprintln(commandErr(cmd), strings.ReplaceAll(issue.Error(), "\n", " ")); err != nil {
+					return err
+				}
+			}
 			jsonOutput, err := jsonOutputEnabled(cmd)
 			if err != nil {
 				return err
@@ -96,7 +103,7 @@ drift, or conflict) and the fields shown on its text line.
 				return err
 			}
 			if len(issues) > 0 {
-				return &exitError{Code: 1}
+				return errors.New("doctor found " + countNoun(len(issues), "issue"))
 			}
 			return nil
 		},
@@ -112,9 +119,8 @@ func collectDoctorIssues(diagnostic *config.DiagnosticProject) ([]doctorIssue, e
 
 	for _, issue := range diagnostic.SourceIssues {
 		issues = append(issues, doctorIssue{
-			Kind:    "missing_source",
-			Source:  issue.Name,
-			Message: issue.Error(),
+			Kind:   "missing_source",
+			Source: issue.Name,
 		})
 	}
 
@@ -199,7 +205,7 @@ func renderDoctorIssues(cmd *cobra.Command, issues []doctorIssue) error {
 	for _, issue := range issues {
 		switch issue.Kind {
 		case "missing_source":
-			if _, err := fmt.Fprintf(out, "MISSING_SOURCE %s %s\n", issue.Source, issue.Message); err != nil {
+			if _, err := fmt.Fprintf(out, "MISSING_SOURCE %s\n", issue.Source); err != nil {
 				return err
 			}
 		case "missing_gitignore":
@@ -220,10 +226,6 @@ func renderDoctorIssues(cmd *cobra.Command, issues []doctorIssue) error {
 			}
 		case "conflict":
 			if _, err := fmt.Fprintf(out, "CONFLICT %s %s [source=%s]\n", issue.Path, issue.Reason, issue.Source); err != nil {
-				return err
-			}
-		default:
-			if _, err := fmt.Fprintf(out, "%s %s\n", strings.ToUpper(issue.Kind), issue.Message); err != nil {
 				return err
 			}
 		}

@@ -56,7 +56,9 @@ const noPromptHelp = `This command never prompts and works without a terminal.`
 
 const jsonContractHelp = `--json writes one JSON object on a single line to stdout and nothing else
 to stdout; diagnostics still go to stderr, the output contains no
-terminal escapes, and the exit status is the same as without --json.`
+terminal escapes, and the exit status is the same as without --json.
+A failure still ends with one 'cubby: <message>' line on stderr and
+writes no JSON error object.`
 
 const colorModeHelp = `--color decides whether stdout is styled: auto (the default) styles it
 only when stdout is a terminal, TERM is not dumb, and NO_COLOR is unset

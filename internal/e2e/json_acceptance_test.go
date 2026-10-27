@@ -45,7 +45,6 @@ type jsonDoctorEnvelope struct {
 type jsonDoctorIssue struct {
 	Kind    string   `json:"kind"`
 	Source  string   `json:"source"`
-	Message string   `json:"message"`
 	Pattern string   `json:"pattern"`
 	Profile string   `json:"profile"`
 	Path    string   `json:"path"`

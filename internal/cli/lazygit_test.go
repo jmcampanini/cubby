@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -125,24 +128,40 @@ func TestLazygitRunnerExitErrorPreservesExitCode(t *testing.T) {
 	host, _ := writeLazygitProject(t, "one")
 	mustChdir(t, host)
 	runner := installLazygitFakes(t)
-	runner.err = &exitError{Code: 42}
+	runner.err = &exitError{Code: 42, Message: "lazygit exited with status 42"}
+	var out, errOut bytes.Buffer
 
-	_, _, err := executeForTest("lazygit")
-	if err == nil {
-		t.Fatalf("lazygit error = nil, want exitError")
+	code := Execute([]string{"lazygit"}, &out, &errOut)
+
+	if code != 42 {
+		t.Errorf("Execute(lazygit) = %d, want 42", code)
 	}
-	var exitErr *exitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("lazygit error = %T %v, want exitError", err, err)
+	if want := "cubby: lazygit exited with status 42\n"; errOut.String() != want {
+		t.Errorf("lazygit stderr = %q, want %q", errOut.String(), want)
 	}
-	if exitErr.Code != 42 {
-		t.Fatalf("exitError code = %d, want 42", exitErr.Code)
-	}
-	if err.Error() != "exit status 42" {
-		t.Fatalf("lazygit error = %q, want unwrapped exit status", err)
+	if out.Len() != 0 {
+		t.Errorf("lazygit stdout = %q, want empty", out.String())
 	}
 	if len(runner.calls) != 1 {
 		t.Fatalf("runner calls = %d, want 1", len(runner.calls))
+	}
+}
+
+func TestNormalizeExternalCommandErrorNamesExitStatus(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh is not available on windows")
+	}
+	runErr := exec.Command("sh", "-c", "exit 42").Run()
+	command := externalCommand{Name: "lazygit"}
+
+	err := normalizeExternalCommandError(command, runErr)
+
+	var exitErr *exitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("normalizeExternalCommandError(%v) = %T %v, want exitError", runErr, err, err)
+	}
+	if exitErr.Code != 42 || exitErr.Message != "lazygit exited with status 42" {
+		t.Errorf("normalizeExternalCommandError(%v) = %+v, want code 42 and message %q", runErr, exitErr, "lazygit exited with status 42")
 	}
 }
 

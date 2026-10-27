@@ -19,6 +19,9 @@ func TestLazygitAcceptanceSingleSourceSelectedImplicitly(t *testing.T) {
 	if result.code != 0 {
 		t.Fatalf("lazygit code = %d, stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
 	}
+	if strings.Contains(result.stdout+result.stderr, "cubby:") {
+		t.Errorf("lazygit stdout = %q, stderr = %q, want no cubby diagnostic", result.stdout, result.stderr)
+	}
 	wantDir := physicalPath(t, sources["one"])
 	if got := strings.TrimSpace(mustRead(t, logPath)); got != wantDir {
 		t.Fatalf("fake lazygit dir = %q, want %q", got, wantDir)
@@ -45,12 +48,16 @@ func TestLazygitAcceptancePassesThroughLazygitExitStatus(t *testing.T) {
 	bin := buildCubby(t)
 	host, _ := writeLazygitAcceptanceProject(t, "one")
 	fakeDir, logPath := writeFakeLazygit(t)
-	mustWrite(t, filepath.Join(fakeDir, "lazygit"), "#!/bin/sh\nexit 7\n")
+	mustWrite(t, filepath.Join(fakeDir, "lazygit"), "#!/bin/sh\nprintf 'lazygit finished\\n' >&2\nexit 7\n")
 
 	result := runCubbyInTerminal(t, bin, host, map[string]string{"PATH": fakeDir, "CUBBY_LAZYGIT_LOG": logPath}, "lazygit")
 
 	if result.code != 7 {
 		t.Fatalf("lazygit code = %d, want 7; stdout = %s, stderr = %s", result.code, result.stdout, result.stderr)
+	}
+	output := strings.ReplaceAll(result.stdout+result.stderr, "\r\n", "\n")
+	if want := "lazygit finished\ncubby: lazygit exited with status 7\n"; !strings.HasSuffix(output, want) || strings.Count(output, "cubby:") != 1 {
+		t.Errorf("terminal output = %q, want suffix %q and one cubby diagnostic", output, want)
 	}
 }
 

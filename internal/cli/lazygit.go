@@ -15,7 +15,8 @@ func lazygitCommand() *cobra.Command {
 		Short: "Open lazygit in a source repo",
 		Long: `Run lazygit from PATH with its working directory set to a registered source
 directory and hand it the terminal: stdin, stdout, and stderr are
-inherited, so this command is interactive and prints nothing of its own.
+inherited, so this command is interactive and prints nothing of its own
+while lazygit runs.
 With one registered source that source is used; with several, --source
 NAME is required. An unknown name is an error listing the known sources,
 and an empty name is an error. All sources must load before lazygit
@@ -32,7 +33,9 @@ PATH' or 'cubby: lazygit needs a terminal on stdout; run cubby lazygit
 from an interactive shell, not with stdout redirected'. Configuration and
 source errors come before these checks, so a pipe still sees them.
 --color does not apply to lazygit's own output. Once lazygit has started,
-cubby exits with lazygit's exit status; if lazygit is terminated by a
+cubby exits with lazygit's exit status. A nonzero status N prints
+'cubby: lazygit exited with status N' on stderr after lazygit returns;
+a zero status prints nothing from cubby. If lazygit is terminated by a
 signal cubby exits 1 with an error on stderr.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

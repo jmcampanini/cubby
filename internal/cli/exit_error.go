@@ -1,12 +1,11 @@
 package cli
 
-import "fmt"
-
-// exitError asks Execute to exit with Code without printing an additional error message.
+// exitError asks Execute to print Message and exit with Code.
 type exitError struct {
-	Code int
+	Code    int
+	Message string
 }
 
 func (e *exitError) Error() string {
-	return fmt.Sprintf("exit status %d", e.Code)
+	return e.Message
 }
